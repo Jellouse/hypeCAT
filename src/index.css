@@ -115,11 +115,17 @@ svg {
 
 .cute-battery-wrap {
   position: relative;
+  display: inline-flex;
+  align-items: center;
 }
 
 .cute-battery-button {
   padding: 0;
+  border: 0;
+  background: transparent;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
 }
 
 .cute-battery-button img {
@@ -130,55 +136,97 @@ svg {
 
 .cute-battery-popup {
   position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  width: 154px;
-  border: 2px solid #1f3042;
-  background: #e8edf3;
-  color: #27384c;
-  padding: 0.3rem 0.35rem;
-  box-shadow:
-    1px 1px 0 rgba(255, 255, 255, 0.5) inset,
-    2px 2px 0 rgba(0, 0, 0, 0.18);
-  z-index: 5;
+  top: calc(100% + 9px);
+  right: -6px;
+  width: 194px;
+  border: 1px solid #ffffff;
+  outline: 1px solid rgb(29 43 60 / 55%);
+  background: rgb(237 239 243 / 96%);
+  color: #12253a;
+  padding: 10px 10px 9px;
+  box-shadow: 0 8px 18px rgb(11 19 31 / 28%);
+  z-index: 32;
+  display: none;
+  gap: 8px;
+  text-transform: uppercase;
+}
+
+.cute-battery-popup.is-open,
+.cute-battery-wrap:hover .cute-battery-popup,
+.cute-battery-wrap:focus-within .cute-battery-popup {
   display: grid;
-  gap: 0.18rem;
+}
+
+.cute-battery-popup__arrow {
+  position: absolute;
+  top: -7px;
+  right: 20px;
+  width: 11px;
+  height: 11px;
+  background: rgb(237 239 243 / 96%);
+  border-left: 1px solid rgb(29 43 60 / 55%);
+  border-top: 1px solid rgb(29 43 60 / 55%);
+  transform: rotate(45deg);
 }
 
 .cute-battery-popup p {
-  margin: 0 0 0.05rem;
-  font-size: 0.56rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #47596f;
+  margin: 0;
+  font-size: 12px;
+  line-height: 14px;
+  letter-spacing: 0.02em;
+  color: #3d526b;
+}
+
+.cute-battery-popup__group {
+  display: grid;
+  gap: 6px;
+}
+
+.cute-battery-popup__item {
+  display: grid;
+  gap: 2px;
 }
 
 .cute-battery-popup__row {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 0.3rem;
-  font-size: 0.62rem;
+  font-size: 11px;
+  line-height: 12px;
+  color: #5a6778;
 }
 
 .cute-battery-popup__row strong {
-  font-weight: 700;
-  min-width: 3.2rem;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 12px;
+  color: #18283b;
 }
 
 .cute-battery-popup__line {
-  flex: 1;
-  height: 3px;
-  border: 1px solid #6e7d90;
-  background: #d7dee7;
+  height: 6px;
+  border: 1px solid #8f9db0;
+  background: #d9e0ea;
   display: flex;
   align-items: center;
   padding: 0;
 }
 
-.cute-battery-popup__line span {
+.cute-battery-popup__fill {
   display: block;
   height: 100%;
-  background: #4b607a;
+}
+
+.cute-battery-popup__fill--social {
+  background: #6389bb;
+}
+
+.cute-battery-popup__fill--sleep {
+  background: #6f9c92;
+}
+
+.cute-battery-popup__fill--attention {
+  background: #7384c0;
 }
 
 .cute-battery-popup__value {
@@ -485,6 +533,84 @@ svg {
 
 .cute-card--empty-slot p {
   margin: 0;
+}
+
+.cute-card--cooling {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  display: block;
+  padding: 0;
+}
+
+.cute-cooling-surface {
+  align-items: center;
+  background: #fff0;
+  box-sizing: border-box;
+  display: flex;
+  height: 100%;
+  left: 0;
+  opacity: 0.72;
+  outline: 2px solid #fff;
+  overflow: clip;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+
+.cute-cooling-content {
+  align-items: center;
+  box-sizing: border-box;
+  display: flex;
+  gap: 58px;
+  height: fit-content;
+  justify-content: space-between;
+  padding: 0 24px;
+  position: relative;
+  width: 532px;
+}
+
+.cute-cooling-copy {
+  align-items: flex-start;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 6px;
+  height: 42px;
+  justify-content: flex-start;
+  width: fit-content;
+}
+
+.cute-cooling-title {
+  color: #fff;
+  flex-shrink: 0;
+  font-family: 'SF Pixelate', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 18px;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.cute-cooling-subtitle {
+  color: #000;
+  flex-shrink: 0;
+  font-family: 'SF Pixelate', monospace;
+  font-size: 14px;
+  line-height: 18px;
+  margin: 0;
+  text-transform: uppercase;
+  width: 278px;
+}
+
+.cute-cooling-dev-skip {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  inset: 0;
+  padding: 0;
+  position: absolute;
 }
 
 .cute-refill-visual {
@@ -1346,6 +1472,7 @@ svg {
   left: 50%;
   bottom: 14px;
   transform: translateX(-50%);
+  z-index: 45;
   color: #eff3fb;
   display: flex;
   align-items: center;
@@ -1355,6 +1482,7 @@ svg {
   font-weight: 700;
   cursor: pointer;
   user-select: none;
+  pointer-events: auto;
   padding: 0.6rem 1.2rem;
   -webkit-tap-highlight-color: transparent;
   border: none;
@@ -2096,5 +2224,607 @@ svg {
 
   .sheet-add-row {
     grid-template-columns: 1fr;
+  }
+}
+@media (min-width: 761px) {
+  .app.app--cute {
+    position: relative;
+    display: block;
+    min-height: 100vh;
+    padding: 0;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  .app--cute .cute-shell {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 373px;
+    position: relative;
+    z-index: 1;
+    padding: 0;
+  }
+
+  .app--cute .cute-device {
+    width: 662px;
+    height: 727px;
+    border: 1px solid #ffffff;
+    outline: 4px solid rgb(238 238 238 / 50%);
+    outline-offset: 3px;
+    background: #ffffff33;
+    backdrop-filter: blur(36px);
+    filter: blur(0.4px);
+    box-shadow: 0 0 0 1px rgb(255 255 255 / 25%) inset;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .app--cute .cute-device-blur-mask {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 662px;
+    height: 744px;
+    backdrop-filter: blur(16px);
+    filter: blur(6px);
+    outline: 1px solid #000;
+    z-index: 0;
+  }
+
+  .app--cute .cute-device-line-haze {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 662px;
+    height: 44px;
+    background-position: 50% 0%;
+    background-repeat: no-repeat;
+    background-size: 100.302% auto;
+    filter: saturate(263%);
+    opacity: 0.4;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .app--cute .cute-status-bar {
+    position: absolute;
+    top: 9px;
+    left: 11px;
+    width: 634px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 210px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #fff;
+    text-transform: uppercase;
+    z-index: 2;
+  }
+
+  .app--cute .cute-signal {
+    font-family: 'SF Pixelate', monospace;
+    font-size: 17px;
+    line-height: 22px;
+    letter-spacing: 0;
+  }
+
+  .app--cute .cute-time {
+    margin-left: auto;
+  }
+
+  .app--cute .cute-signal,
+  .app--cute .cute-time,
+  .app--cute .cute-date {
+    border: 0;
+    padding: 0;
+    font-size: 17px;
+    line-height: 22px;
+    letter-spacing: 0;
+  }
+
+  .app--cute .cute-time,
+  .app--cute .cute-date {
+    font-weight: 700;
+  }
+
+  .app--cute .cute-status-bar .cute-icon--sun,
+  .app--cute .cute-status-bar .cute-battery {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    background: none;
+    border: 0;
+    box-shadow: none;
+    display: grid;
+    place-items: center;
+    padding: 0;
+  }
+
+  .app--cute .cute-status-bar .cute-icon--sun img {
+    width: 14px;
+    height: 14px;
+    object-fit: contain;
+    filter: saturate(110%);
+  }
+
+  .app--cute .cute-status-bar .cute-icon--sun-dot {
+    width: 18px;
+    height: 18px;
+    border: 1px solid #407800;
+    border-radius: 999px;
+    background-image: linear-gradient(in oklab 180deg, oklab(86.9% -0.091 0.165 / 87%) 0%, oklab(90.2% -0.081 0.147 / 87%) 100%);
+    filter: blur(2px);
+  }
+
+  .app--cute .cute-status-bar .cute-battery img {
+    width: 28px;
+    height: 16.5px;
+    object-fit: contain;
+  }
+
+  .app--cute .cute-card-grid {
+    position: absolute;
+    top: 59px;
+    left: 9px;
+    width: 641px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    z-index: 2;
+  }
+
+  .app--cute .cute-card,
+  .app--cute .cute-card--empty-slot {
+    width: 641px;
+    height: 100px;
+    border: 0;
+    outline: 2px solid #fff;
+    background: #ffffff80;
+    box-shadow: none;
+    border-radius: 0;
+    display: block;
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+    transform: none;
+    transition: none;
+  }
+
+  .app--cute .cute-card:nth-child(3) {
+    height: 166px;
+  }
+
+  .app--cute .cute-card--mini-prompt-card {
+    height: auto;
+    min-height: 132px;
+    overflow: visible;
+  }
+
+  .app--cute .cute-card--cooling {
+    height: 100px;
+    background: transparent;
+    outline: 0;
+  }
+
+  .app--cute .cute-card:nth-child(3) .cute-card-top {
+    height: 127px;
+    background-color: #ffffff66;
+    border: 1px solid #fff;
+    box-shadow: #ffffff73 1px 1px 0 inset;
+  }
+
+  .app--cute .cute-card:hover,
+  .app--cute .cute-card--focus {
+    transform: none;
+    box-shadow: none;
+    outline-color: #fff;
+  }
+
+  .app--cute .cute-card-reveal {
+    display: none;
+  }
+
+  .app--cute .cute-card-surface {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+    min-height: 100%;
+  }
+
+  .app--cute .cute-card-top {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100px;
+    height: 100%;
+    min-height: 0;
+    border: 0;
+    background: linear-gradient(in oklab 180deg, oklab(100% 0 0) 0%, oklab(100% 0 0 / 0%) 100%);
+    display: block;
+    padding: 9px 8px;
+  }
+
+  .app--cute .cute-card-top::before,
+  .app--cute .cute-card--mini-game .cute-card-top::after {
+    display: none;
+  }
+
+  .app--cute .cute-card-top span {
+    display: block;
+    margin: 0;
+    max-width: 54px;
+    overflow-wrap: break-word;
+    color: #000;
+    font-size: 14px;
+    line-height: 1.1;
+    letter-spacing: -0.1em;
+  }
+
+  .app--cute .cute-card-content {
+    position: absolute;
+    left: 124px;
+    top: 14px;
+    width: 278px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0;
+  }
+
+  .app--cute .cute-card-content--prompt {
+    position: absolute;
+    left: 124px;
+    top: 14px;
+    width: 500px;
+    gap: 6px;
+    padding: 0;
+  }
+
+  .app--cute .cute-card--mini-prompt-card .cute-mini-prompt {
+    width: 100%;
+    gap: 6px;
+  }
+
+  .app--cute .cute-card--mini-prompt-card .cute-mini-prompt__question {
+    margin: 0;
+    max-width: 430px;
+    color: #000;
+    font-size: 16px;
+    line-height: 20px;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  .app--cute .cute-card--mini-prompt-card .cute-mini-prompt__row {
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+  }
+
+  .app--cute .cute-card--mini-prompt-card .cute-mini-prompt__row input {
+    height: 33px;
+    font-size: 14px;
+    line-height: 18px;
+  }
+
+  .app--cute .cute-card--mini-prompt-card .cute-mini-prompt__row button {
+    height: 33px;
+    padding: 0 12px;
+    font-size: 14px;
+    line-height: 18px;
+    text-transform: none;
+  }
+
+  .app--cute .cute-card--mini-prompt-card .cute-mini-prompt__feedback {
+    font-size: 14px;
+    line-height: 16px;
+    text-transform: none;
+  }
+
+  .app--cute .cute-card-content h3 {
+    margin: 0;
+    color: #000;
+    font-size: 16px;
+    line-height: 20px;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  .app--cute .cute-card-content p {
+    margin: 0;
+    color: #000;
+    font-size: 16px;
+    line-height: 20px;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  .app--cute .cute-mini-card-body {
+    position: absolute;
+    left: 100px;
+    top: 20px;
+    right: 0;
+    bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 58px;
+    padding: 0 30px 0 20px;
+  }
+
+  .app--cute .cute-mini-games__canvas {
+    width: 278px;
+    height: 100%;
+    border: 1px solid #fff;
+    background: #ffffff4d;
+    box-shadow: 0 2px 2px rgb(0 0 0 / 20%);
+  }
+
+  .app--cute .cute-mini-games__meta {
+    margin: 12px 0 0;
+    font-size: 14px;
+    line-height: 16px;
+    color: #000;
+    letter-spacing: -0.1em;
+    text-transform: none;
+    position: absolute;
+    left: 20px;
+    bottom: 0;
+  }
+
+  .app--cute .cute-mini-games__controls {
+    display: none;
+  }
+
+  .app--cute .cute-actions--paws {
+    position: absolute;
+    right: 30px;
+    top: 25px;
+    bottom: auto;
+    display: flex;
+    gap: 23px;
+    margin: 0;
+  }
+
+  .app--cute .cute-card:nth-child(1) .cute-actions--paws {
+    right: 23px;
+  }
+
+  .app--cute .cute-card:nth-child(2) .cute-actions--paws {
+    right: 40px;
+    top: 24px;
+  }
+
+  .app--cute .cute-card:nth-child(3) .cute-actions--paws {
+    right: 30px;
+    top: 57px;
+  }
+
+  .app--cute .cute-actions--paws button {
+    position: relative;
+    width: 51px;
+    height: 52px;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+  }
+
+  .app--cute .cute-paw-glow {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    border: 1px solid #59e17c;
+    background: #fea9ca;
+    filter: blur(12px);
+  }
+
+  .app--cute .cute-actions--paws button:last-child .cute-paw-glow {
+    background: #c6cd4e99;
+  }
+
+  .app--cute .cute-actions--paws button img {
+    position: relative;
+    z-index: 1;
+    width: 21px;
+    height: 20px;
+    opacity: 1;
+  }
+
+  .app--cute .cute-bottom-whitespace,
+  .app--cute .cute-weather {
+    display: none;
+  }
+
+  .app--cute .cute-bottom-strip {
+    position: absolute;
+    left: 0;
+    top: 614px;
+    width: 662px;
+    height: 97px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 12px 0 14px;
+    gap: 6px;
+  }
+
+  .app--cute .cute-radio {
+    width: 386px;
+    max-width: 386px;
+    height: 97px;
+    border: 1px solid #b8bec8;
+    background: #ffffff80;
+    box-shadow: #ffffff73 1px 1px 0 inset;
+    padding: 0;
+    display: grid;
+    grid-template-rows: 44px 1fr;
+    gap: 0;
+  }
+
+  .app--cute .cute-radio__tuner {
+    height: 44px;
+    border-bottom: 1px solid rgb(110 125 146 / 24%);
+    padding: 10px 10px 8px;
+    background: transparent;
+  }
+
+  .app--cute .cute-radio__wave path {
+    stroke: #9aa4b3;
+    stroke-width: 2;
+  }
+
+  .app--cute .cute-radio__dial {
+    top: 7px;
+    width: 30px;
+    height: 30px;
+    border: 0;
+    background: linear-gradient(in oklab 90deg, oklab(74.3% 0.102 0.151 / 60%) 21.15%, oklab(74.3% 0.102 0.151 / 0%) 49.77%, oklab(74.3% 0.102 0.151 / 60%) 78.85%);
+    cursor: grab;
+  }
+
+  .app--cute .cute-radio__dial span {
+    width: 0;
+    height: 0;
+    border: 0;
+  }
+
+  .app--cute .cute-radio__lower {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 7px 10px 6px;
+  }
+
+  .app--cute .cute-radio__brand {
+    font-size: 18px;
+    line-height: 18px;
+    letter-spacing: 0.08em;
+    color: #46546a;
+  }
+
+  .app--cute .cute-radio__track {
+    margin-top: 3px;
+    max-width: none;
+    font-size: 16px;
+    line-height: 12px;
+    color: rgb(46 58 75 / 55%);
+  }
+
+  .app--cute .cute-radio__play {
+    width: 32px;
+    height: 32px;
+    color: #6f7e95;
+    font-size: 27px;
+    text-shadow: none;
+  }
+
+  .app--cute .cute-mini-calendar {
+    width: 236px;
+    height: 97px;
+    border: 1px solid #b6b6b6;
+    background: #ffffff80;
+    box-shadow: none;
+    padding: 8px 8px 9px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .app--cute .cute-mini-calendar::after {
+    content: '';
+    position: absolute;
+    right: 9px;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    background: url('/ui-sun.png') center / contain no-repeat;
+    opacity: 0.95;
+  }
+
+  .app--cute .cute-mini-calendar p {
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+    line-height: 12px;
+    text-align: left;
+    font-weight: 400;
+  }
+
+  .app--cute .week-row {
+    margin: 0;
+    gap: 2px;
+  }
+
+  .app--cute .week-row span {
+    height: 30px;
+    font-size: 12px;
+    font-weight: 400;
+    background: #cfd5dd;
+    border: 1px solid #98a7b8;
+    box-shadow: none;
+    text-transform: uppercase;
+  }
+
+  .app--cute .week-row .today {
+    background: #515965;
+    color: #f3f6fa;
+  }
+
+  .app--cute .cute-mode-switch {
+    position: fixed;
+    left: 50%;
+    bottom: 14px;
+    transform: translateX(-50%);
+    padding: 0;
+    gap: 13px;
+    color: #000;
+    z-index: 45;
+    height: 20px;
+  }
+
+  .app--cute .cute-mode-switch .mode-label {
+    opacity: 1;
+    font-size: 16px;
+    line-height: 20px;
+    color: #000;
+  }
+
+  .app--cute .cute-mode-switch .mode-label--active {
+    color: #ff0005;
+    font-weight: 700;
+  }
+
+  .app--cute .cute-mode-switch .mode-toggle {
+    width: 56px;
+    height: 27px;
+    border: 1px solid rgb(0 0 0 / 20%);
+    background: rgb(255 255 255 / 80%);
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .app--cute .cute-mode-switch .mode-toggle__knob {
+    width: 14px;
+    height: 14px;
+    border: 0;
+    background: #000;
+    box-shadow: none;
+  }
+
+  .app--cute .open-sheet {
+    right: 18px;
+    bottom: 18px;
+    display: inline-flex;
+    z-index: 4;
   }
 }

@@ -15,6 +15,7 @@ import {
   SLOT_COOLDOWN_STORAGE_KEY,
   VOTED_SLOT_COOLDOWN_MS,
 } from './app/constants'
+import { HalftoneCmyk, PerlinNoise } from '@paper-design/shaders-react'
 import {
   clamp01,
   createMemoryTiles,
@@ -50,7 +51,7 @@ import './index.css'
 function App() {
   const weekdayLabels = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] as const
   const [isCute, setIsCute] = useState(true)
-  const [isCuteCollapsed, setIsCuteCollapsed] = useState(false)
+  const isCuteCollapsed = false
   const [cards, setCards] = useState<Card[]>(() => {
     const normalized = normalizeCardCategories(loadPersistedCards(CARDS_STORAGE_KEY, CARDS))
     return hasPersistedCardDeck(CARDS_STORAGE_KEY) ? normalized : shuffleCards(normalized)
@@ -90,7 +91,7 @@ function App() {
     temperatureC: null,
   })
   const [now, setNow] = useState(() => new Date())
-  const [isBatteryPanelOpen, setIsBatteryPanelOpen] = useState(false)
+  const [isBatteryOverlayOpen, setIsBatteryOverlayOpen] = useState(false)
   const [isTouchOptimized, setIsTouchOptimized] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 760px)').matches : false,
   )
@@ -134,7 +135,6 @@ function App() {
   const slotCooldownTimersRef = useRef<Record<number, number>>({})
   const tunerTrackRef = useRef<HTMLDivElement | null>(null)
   const activeStationIdRef = useRef<RadioStation['id'] | null>(RADIO_STATIONS[0].id)
-  const batteryPanelRef = useRef<HTMLDivElement | null>(null)
   const pongCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const flappyCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const [pongCanvasVersion, setPongCanvasVersion] = useState(0)
@@ -341,28 +341,6 @@ function App() {
     }
     return 69
   })()
-
-  useEffect(() => {
-    if (!isBatteryPanelOpen) {
-      return
-    }
-    const closeIfOutside = (event: MouseEvent) => {
-      if (!batteryPanelRef.current?.contains(event.target as Node)) {
-        setIsBatteryPanelOpen(false)
-      }
-    }
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsBatteryPanelOpen(false)
-      }
-    }
-    window.addEventListener('mousedown', closeIfOutside)
-    window.addEventListener('keydown', closeOnEscape)
-    return () => {
-      window.removeEventListener('mousedown', closeIfOutside)
-      window.removeEventListener('keydown', closeOnEscape)
-    }
-  }, [isBatteryPanelOpen])
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -1453,66 +1431,173 @@ function App() {
   return (
     <main className={`app ${isCute ? 'app--cute' : 'app--stealth'}`}>
       {isCute ? (
-        <div className="cute-shell">
-          <section className={`cute-device ${isCuteCollapsed ? 'cute-device--collapsed' : ''}`.trim()}>
-            <header className="cute-status-bar">
-              <span className="cute-signal">HYPE CAT</span>
-              <span className="cute-time">{timeLabel}</span>
-              <span className="cute-date">{dateLabel}</span>
-              <button
-                type="button"
-                className="cute-icon cute-icon--orange cute-collapse"
-                aria-label={isCuteCollapsed ? 'Expand window' : 'Collapse window'}
-                aria-expanded={!isCuteCollapsed}
-                onClick={() => setIsCuteCollapsed((collapsed) => !collapsed)}
-              >
-                ▬
-              </button>
-              <span className="cute-icon cute-icon--mono" aria-hidden="true">
-                M
-              </span>
-              <div className="cute-battery-wrap" ref={batteryPanelRef}>
-                <button
-                  type="button"
-                  className="cute-battery cute-battery-button"
-                  aria-label="Show personal battery levels"
-                  aria-expanded={isBatteryPanelOpen}
-                  onClick={() => setIsBatteryPanelOpen((open) => !open)}
-                >
-                  <img src="/ui-battery.png" alt="" />
-                </button>
-                {isBatteryPanelOpen ? (
-                  <div className="cute-battery-popup" role="status" aria-live="polite">
-                    <p>Battery Approx</p>
-                    <span className="cute-battery-popup__row">
-                      <strong>Social</strong>
-                      <span className="cute-battery-popup__line" aria-hidden="true">
-                        <span style={{ width: meterWidth(socialBattery) }} />
-                      </span>
-                      <span className="cute-battery-popup__value">{socialBattery}%</span>
-                    </span>
-                    <span className="cute-battery-popup__row">
-                      <strong>Sleep</strong>
-                      <span className="cute-battery-popup__line" aria-hidden="true">
-                        <span style={{ width: meterWidth(sleepBattery) }} />
-                      </span>
-                      <span className="cute-battery-popup__value">{sleepBattery}%</span>
-                    </span>
-                    <span className="cute-battery-popup__row">
-                      <strong>Attention</strong>
-                      <span className="cute-battery-popup__line" aria-hidden="true">
-                        <span style={{ width: meterWidth(attentionBattery) }} />
-                      </span>
-                      <span className="cute-battery-popup__value">{attentionBattery}%</span>
-                    </span>
-                  </div>
-                ) : null}
+        <div
+          style={{
+            alignItems: 'center',
+            backgroundImage: 'url(https://workers.paper.design/file-assets/01KJCTWWPH70B7ATMDVTG9X3TK/01KJQFRX9ZX4NZB2GGMRGVH4SR.jpg)',
+            backgroundPosition: 'center',
+            backgroundSize: 'cover',
+            boxSizing: 'border-box',
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100vh',
+            justifyContent: 'space-between',
+            overflow: 'clip',
+            paddingInline: 0,
+            position: 'relative',
+            width: '100%',
+          }}
+        >
+          <HalftoneCmyk
+            size={0.21}
+            gridNoise={0.01}
+            type="ink"
+            softness={1}
+            contrast={2}
+            gainC={0.3}
+            gainM={0}
+            gainY={0.2}
+            gainK={0}
+            floodC={0.15}
+            floodM={0}
+            floodY={0}
+            floodK={0}
+            scale={1}
+            image="https://workers.paper.design/file-assets/01KJCTWWPH70B7ATMDVTG9X3TK/01KJR33NYZTXGP0FRQV8S9QVKM.jpg"
+            grainSize={0.5}
+            fit="cover"
+            colorBack="#00000000"
+            colorC="#00B4FF"
+            colorM="#FC519F"
+            colorY="#FFD800"
+            colorK="#231F20"
+            style={{ backgroundColor: '#FBFAF5', height: '1081px', left: 0, position: 'absolute', top: 0, width: '100%' }}
+          />
+          <div
+            className="cute-shell"
+            style={{
+              alignItems: 'center',
+              boxSizing: 'border-box',
+              display: 'flex',
+              gap: 373,
+              height: '100%',
+              justifyContent: 'center',
+              position: 'relative',
+              width: '100%',
+            }}
+          >
+            <section
+              className={`cute-device ${isCuteCollapsed ? 'cute-device--collapsed' : ''}`.trim()}
+              style={{
+                backdropFilter: 'blur(36px)',
+                backgroundColor: '#FFFFFF33',
+                border: '1px solid #FFFFFF',
+                boxSizing: 'border-box',
+                filter: 'blur(0.4px)',
+                height: '727px',
+                outline: '4px solid #EEEEEE80',
+                outlineOffset: '3px',
+                overflow: 'clip',
+                position: 'relative',
+                width: '662px',
+              }}
+            >
+              <div className="cute-device-blur-mask" aria-hidden="true" style={{ backdropFilter: 'blur(16px)', filter: 'blur(6px)', height: '744px', left: 0, opacity: 1, outline: '1px solid #000000', position: 'absolute', top: 0, width: '662px' }} />
+              <div
+                className="cute-device-line-haze"
+                aria-hidden="true"
+                style={{
+                  backgroundImage:
+                    'url(https://workers.paper.design/file-assets/01KJCTWWPH70B7ATMDVTG9X3TK/01KJCZK38DCBFHX9DGAQR798XG.png)',
+                  backgroundPosition: '50% 0%',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundSize: '100.302% auto',
+                  boxSizing: 'border-box',
+                  filter: 'saturate(263%)',
+                  height: '44px',
+                  left: 0,
+                  opacity: '40%',
+                  position: 'absolute',
+                  top: 0,
+                  width: '662px',
+                }}
+              />
+            <header className="cute-status-bar" style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: 210, height: 'fit-content', justifyContent: 'space-between', left: 11, paddingBlock: 0, paddingInline: 0, position: 'absolute', top: 9, width: '634px' }}>
+              <span className="cute-signal" style={{ boxSizing: 'border-box', color: '#FFFFFF', flexShrink: 0, fontSize: '17px', height: 'fit-content', lineHeight: '22px', width: 'fit-content' }}>HYPE CAT</span>
+              <div className="cute-status-meta" style={{ alignItems: 'flex-start', boxSizing: 'border-box', display: 'flex', flexShrink: 0, gap: 24, height: 'fit-content', paddingBlock: 0, paddingInline: 0, width: 'fit-content' }}>
+                <span className="cute-time" style={{ boxSizing: 'border-box', color: '#FFFFFF', flexShrink: 0, fontSize: '17px', fontWeight: 700, height: 'fit-content', lineHeight: '22px', width: 'fit-content' }}>{timeLabel}</span>
+                <span className="cute-date" style={{ boxSizing: 'border-box', color: '#FFFFFF', flexShrink: 0, fontSize: '17px', fontWeight: 700, height: 'fit-content', lineHeight: '22px', width: 'fit-content' }}>{dateLabel}</span>
+                <span className="cute-status-icons" style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: 0, gap: 14, height: 'fit-content', paddingBlock: 0, paddingInline: 0, width: 'fit-content' }}>
+                  <span className="cute-icon cute-icon--sun">
+                    <span className="cute-icon--sun-dot" />
+                  </span>
+                  <span
+                    className={`cute-battery-wrap ${isBatteryOverlayOpen ? 'is-open' : ''}`.trim()}
+                    onMouseEnter={() => setIsBatteryOverlayOpen(true)}
+                    onMouseLeave={() => setIsBatteryOverlayOpen(false)}
+                  >
+                    <button
+                      type="button"
+                      className="cute-battery-button"
+                      aria-label="Show battery values"
+                      aria-expanded={isBatteryOverlayOpen}
+                      onFocus={() => setIsBatteryOverlayOpen(true)}
+                      onBlur={() => setIsBatteryOverlayOpen(false)}
+                      onClick={() => setIsBatteryOverlayOpen((open) => !open)}
+                    >
+                      <span
+                        className="cute-battery"
+                        style={{
+                          backgroundImage: 'url(https://workers.paper.design/file-assets/01KJCTWWPH70B7ATMDVTG9X3TK/01KJCZWG1HYX8X90236D0QNG1M.png)',
+                          backgroundPosition: 'center',
+                          backgroundRepeat: 'no-repeat',
+                          backgroundSize: 'cover',
+                          boxSizing: 'border-box',
+                          flexShrink: 0,
+                          height: '16.5px',
+                          width: '28px',
+                        }}
+                      />
+                    </button>
+                    <div className={`cute-battery-popup ${isBatteryOverlayOpen ? 'is-open' : ''}`.trim()} role="status" aria-live="polite">
+                      <span className="cute-battery-popup__arrow" aria-hidden="true" />
+                      <p>BATTERY VALUES</p>
+                      <div className="cute-battery-popup__group">
+                        <div className="cute-battery-popup__item">
+                          <div className="cute-battery-popup__row">
+                            <span>SOCIAL</span>
+                            <strong>{socialBattery}%</strong>
+                          </div>
+                          <span className="cute-battery-popup__line">
+                            <span className="cute-battery-popup__fill cute-battery-popup__fill--social" style={{ width: meterWidth(socialBattery) }} />
+                          </span>
+                        </div>
+                        <div className="cute-battery-popup__item">
+                          <div className="cute-battery-popup__row">
+                            <span>SLEEP</span>
+                            <strong>{sleepBattery}%</strong>
+                          </div>
+                          <span className="cute-battery-popup__line">
+                            <span className="cute-battery-popup__fill cute-battery-popup__fill--sleep" style={{ width: meterWidth(sleepBattery) }} />
+                          </span>
+                        </div>
+                        <div className="cute-battery-popup__item">
+                          <div className="cute-battery-popup__row">
+                            <span>ATTENTION</span>
+                            <strong>{attentionBattery}%</strong>
+                          </div>
+                          <span className="cute-battery-popup__line">
+                            <span className="cute-battery-popup__fill cute-battery-popup__fill--attention" style={{ width: meterWidth(attentionBattery) }} />
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </span>
+                </span>
               </div>
             </header>
 
-            {!isCuteCollapsed ? (
-              <>
-                <section className="cute-card-grid" aria-label="Break cards">
+                <section className="cute-card-grid" aria-label="Break cards" style={{ alignItems: 'start', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '20px', height: 'fit-content', left: 9, paddingBlock: 0, paddingInline: 0, position: 'absolute', top: 59, width: '641px' }}>
                     {visibleSlots.every((slot) => slot.card === null) ? (
                       <article className="cute-empty" aria-live="polite">
                         <p>All cards paw-sorted.</p>
@@ -1528,31 +1613,41 @@ function App() {
                           const minutesLeft =
                             slot.cooldownUntil === null ? 0 : Math.max(1, Math.ceil((slot.cooldownUntil - nowMs) / 60000))
                           return (
-                            <article key={`empty-slot-${index}`} className="cute-card cute-card--empty-slot" aria-label={`Card slot ${index + 1} empty`}>
+                            <article
+                              key={`empty-slot-${index}`}
+                              className={`cute-card cute-card--empty-slot ${slot.cooldownUntil ? 'cute-card--cooling' : ''}`.trim()}
+                              aria-label={`Card slot ${index + 1} empty`}
+                            >
                               {slot.cooldownUntil ? (
-                                <>
+                                <div className="cute-cooling-surface">
+                                  <PerlinNoise
+                                    speed={0.5}
+                                    scale={1}
+                                    proportion={0.35}
+                                    softness={0.1}
+                                    octaveCount={1}
+                                    lacunarity={1.5}
+                                    persistence={1}
+                                    colorBack="#00000000"
+                                    colorFront="#FCCFF7"
+                                    style={{ backgroundColor: '#632AD5', height: '100%', left: 0, opacity: '10%', position: 'absolute', top: 0, width: '100%' }}
+                                  />
+                                  <div className="cute-cooling-content">
+                                    <div className="cute-cooling-copy">
+                                      <p className="cute-cooling-title">SLOT COOLING</p>
+                                      <p className="cute-cooling-subtitle">{`REFILLS IN ${minutesLeft}M`}</p>
+                                    </div>
+                                  </div>
                                   {import.meta.env.DEV ? (
                                     <button
                                       type="button"
-                                      className="cute-refill-visual cute-refill-visual--button"
+                                      className="cute-cooling-dev-skip"
                                       onClick={() => skipSlotCooldownForDev(index)}
                                       aria-label="Skip cooldown for this slot"
-                                    >
-                                      <span className="steam steam--one" />
-                                      <span className="steam steam--two" />
-                                      <span className="steam steam--three" />
-                                      <span className="cup" />
-                                    </button>
-                                  ) : (
-                                    <span className="cute-refill-visual" aria-hidden="true">
-                                      <span className="steam steam--one" />
-                                      <span className="steam steam--two" />
-                                      <span className="steam steam--three" />
-                                      <span className="cup" />
-                                    </span>
-                                  )}
-                                  <p>{`Refills in ${minutesLeft}m`}</p>
-                                </>
+                                      title="Skip cooldown"
+                                    />
+                                  ) : null}
+                                </div>
                               ) : (
                                 <p>No cards queued</p>
                               )}
@@ -1564,18 +1659,40 @@ function App() {
                             <article
                               className={`cute-card ${miniCardId ? 'cute-card--mini-game' : ''} ${promptCardId ? 'cute-card--mini-prompt-card' : ''} ${(votes[card.id] ?? 0) !== 0 ? 'cute-card--focus' : ''} ${removingCardId === card.id ? 'cute-card--removing' : ''}`.trim()}
                               aria-label={`Card ${index + 1}`}
+                              style={{
+                                boxSizing: 'border-box',
+                                flexShrink: 0,
+                                height: miniCardId ? '128px' : promptCardId ? 'auto' : '100px',
+                                minHeight: promptCardId ? '132px' : undefined,
+                                position: 'relative',
+                                width: '100%',
+                              }}
                             >
                             <div className={`cute-card-reveal ${removingCardId === card.id ? 'cute-card-reveal--visible' : ''}`.trim()}>
                               {removalDirection === 1 ? 'PAW UP LOGGED' : 'PAW DOWN LOGGED'}
                             </div>
-                            <div className={`cute-card-surface ${miniCardId ? 'cute-card-surface--mini' : ''}`.trim()}>
-                              <div className="cute-card-top" aria-hidden="true">
+                            <div
+                              className={`cute-card-surface ${miniCardId ? 'cute-card-surface--mini' : ''}`.trim()}
+                              style={{
+                                backgroundColor: '#FFFFFF80',
+                                boxSizing: 'border-box',
+                                height: miniCardId ? '166px' : promptCardId ? 'auto' : '100px',
+                                left: 0,
+                                minHeight: promptCardId ? '132px' : undefined,
+                                outline: '2px solid #FFFFFF',
+                                overflow: promptCardId ? 'visible' : 'clip',
+                                position: promptCardId ? 'relative' : 'absolute',
+                                top: 0,
+                                width: '100%',
+                              }}
+                            >
+                              <div className="cute-card-top" aria-hidden="true" style={{ boxSizing: 'border-box', height: '100%', left: 0, position: 'absolute', top: 0, width: '100px' }}>
                                 {card.tag.split('\n').map((line) => (
-                                  <span key={line}>{line}</span>
+                                  <span key={line} style={{ boxSizing: 'border-box', color: '#000000', fontSize: '14px', left: 8, letterSpacing: '-0.1em', lineHeight: '1.1', position: 'relative', top: 9, width: '54px', whiteSpace: 'pre-wrap' }}>{line}</span>
                                 ))}
                               </div>
                               {miniCardId ? (
-                                <div className="cute-mini-card-body">
+                                <div className="cute-mini-card-body" style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: 58, height: '100%', justifyContent: 'space-between', paddingBottom: '20px', paddingLeft: '20px', paddingRight: '30px', paddingTop: '20px', width: '100%' }}>
                                   {miniCardId === 'pong' ? (
                                     <>
                                       <canvas
@@ -1613,6 +1730,7 @@ function App() {
                                         ref={setFlappyCanvasNode}
                                         className="cute-mini-games__canvas"
                                         aria-label="Flappy mini game"
+                                        style={{ alignItems: 'flex-start', backgroundColor: '#FFFFFF4D', borderColor: '#FFFFFF', borderStyle: 'solid', borderWidth: '1px', boxShadow: '#00000033 0px 2px 2px', boxSizing: 'border-box', display: 'flex', height: '100%', justifyContent: 'center', position: 'relative', width: '278px' }}
                                       />
                                       <p className="cute-mini-games__meta">
                                         Score {flappyScore} / Best {Math.max(flappyBest, flappyScore)} ({flappyPhase})
@@ -1660,7 +1778,7 @@ function App() {
                                     </>
                                   ) : null}
 
-                                  <div className="cute-actions cute-actions--paws">
+                                  <div className="cute-actions cute-actions--paws" style={{ alignItems: 'end', boxSizing: 'border-box', display: 'flex', gap: '23px', height: 'fit-content', left: index === 0 ? 493 : index === 1 ? 476 : undefined, paddingBlock: 0, paddingInline: 0, position: 'absolute', top: index === 0 ? 25 : 24, width: 'fit-content' }}>
                                     <button
                                       type="button"
                                       aria-label={`Upvote ${card.title}`}
@@ -1669,7 +1787,8 @@ function App() {
                                       disabled={Boolean(removingCardId)}
                                       onClick={() => handleVote(card.id, 1)}
                                     >
-                                      <img src={card.paws[0]} alt="" />
+                                      <span className="cute-paw-glow" aria-hidden="true" />
+                                      <img src={card.paws[1]} alt="" />
                                     </button>
                                     <button
                                       type="button"
@@ -1679,13 +1798,14 @@ function App() {
                                       disabled={Boolean(removingCardId)}
                                       onClick={() => handleVote(card.id, -1)}
                                     >
-                                      <img src={card.paws[1]} alt="" />
+                                      <span className="cute-paw-glow" aria-hidden="true" />
+                                      <img src={card.paws[0]} alt="" />
                                     </button>
                                   </div>
                                 </div>
                               ) : promptCardId ? (
                                 <>
-                                  <div className="cute-card-content">
+                                  <div className="cute-card-content cute-card-content--prompt">
                                     <h3>TINY PROMPT</h3>
                                     <form
                                       className="cute-mini-prompt"
@@ -1715,7 +1835,7 @@ function App() {
                                       ) : null}
                                     </form>
                                   </div>
-                                  <div className="cute-actions cute-actions--paws">
+                                  <div className="cute-actions cute-actions--paws" style={{ alignItems: 'end', boxSizing: 'border-box', display: 'flex', gap: '23px', height: 'fit-content', left: index === 0 ? 493 : index === 1 ? 476 : undefined, paddingBlock: 0, paddingInline: 0, position: 'absolute', top: index === 0 ? 25 : 24, width: 'fit-content' }}>
                                     <button
                                       type="button"
                                       aria-label={`Upvote ${card.title}`}
@@ -1724,7 +1844,8 @@ function App() {
                                       disabled={Boolean(removingCardId)}
                                       onClick={() => handleVote(card.id, 1)}
                                     >
-                                      <img src={card.paws[0]} alt="" />
+                                      <span className="cute-paw-glow" aria-hidden="true" />
+                                      <img src={card.paws[1]} alt="" />
                                     </button>
                                     <button
                                       type="button"
@@ -1734,17 +1855,24 @@ function App() {
                                       disabled={Boolean(removingCardId)}
                                       onClick={() => handleVote(card.id, -1)}
                                     >
-                                      <img src={card.paws[1]} alt="" />
+                                      <span className="cute-paw-glow" aria-hidden="true" />
+                                      <img src={card.paws[0]} alt="" />
                                     </button>
                                   </div>
                                 </>
                               ) : (
                                 <>
-                                  <div className="cute-card-content">
+                                  <div
+                                    className="cute-card-content"
+                                    style={{
+                                      top: '50%',
+                                      transform: 'translateY(-50%)',
+                                    }}
+                                  >
                                     <h3>{card.title}</h3>
                                     <p>{card.body}</p>
                                   </div>
-                                  <div className="cute-actions cute-actions--paws">
+                                  <div className="cute-actions cute-actions--paws" style={{ alignItems: 'end', boxSizing: 'border-box', display: 'flex', gap: '23px', height: 'fit-content', left: index === 0 ? 493 : index === 1 ? 476 : undefined, paddingBlock: 0, paddingInline: 0, position: 'absolute', top: index === 0 ? 25 : 24, width: 'fit-content' }}>
                                     <button
                                       type="button"
                                       aria-label={`Upvote ${card.title}`}
@@ -1753,7 +1881,8 @@ function App() {
                                       disabled={Boolean(removingCardId)}
                                       onClick={() => handleVote(card.id, 1)}
                                     >
-                                      <img src={card.paws[0]} alt="" />
+                                      <span className="cute-paw-glow" aria-hidden="true" />
+                                      <img src={card.paws[1]} alt="" />
                                     </button>
                                     <button
                                       type="button"
@@ -1763,7 +1892,8 @@ function App() {
                                       disabled={Boolean(removingCardId)}
                                       onClick={() => handleVote(card.id, -1)}
                                     >
-                                      <img src={card.paws[1]} alt="" />
+                                      <span className="cute-paw-glow" aria-hidden="true" />
+                                      <img src={card.paws[0]} alt="" />
                                     </button>
                                   </div>
                                 </>
@@ -1778,8 +1908,8 @@ function App() {
 
                 <div className="cute-bottom-whitespace" aria-hidden="true" />
 
-                <footer className="cute-bottom-strip">
-                  <div className="cute-radio" aria-live="polite">
+                <footer className="cute-bottom-strip" style={{ alignItems: 'flex-end', boxSizing: 'border-box', display: 'flex', gap: '6px', height: '97px', left: 0, paddingLeft: '14px', paddingRight: '12px', position: 'absolute', top: 614, width: '662px' }}>
+                  <div className="cute-radio" aria-live="polite" style={{ backgroundColor: '#FFFFFF80', borderColor: '#B8BEC8', borderStyle: 'solid', borderWidth: '1px', boxShadow: '#FFFFFF73 1px 1px 0px inset', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: 0, height: '97px', width: '386px' }}>
                     <div
                       className="cute-radio__tuner"
                       ref={tunerTrackRef}
@@ -1818,7 +1948,7 @@ function App() {
 
                     <span />
 
-                    <div className="cute-radio__lower">
+                    <div className="cute-radio__lower" style={{ alignItems: 'flex-end', boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between', paddingBottom: '6px', paddingLeft: '10px', paddingRight: '10px', paddingTop: '7px', width: '100%' }}>
                       <div>
                         <p className="cute-radio__brand">{activeStation?.name ?? 'NO SIGNAL'}</p>
                         <p className="cute-radio__track">
@@ -1850,7 +1980,7 @@ function App() {
                     <span className="cute-weather-inline">{`${weatherTemperatureLabel} • ${weather.label}`}</span>
                     <span className="cute-weather-popup">{`${weatherTemperatureLabel} • ${weather.label}`}</span>
                   </span>
-                  <div className="cute-mini-calendar">
+                  <div className="cute-mini-calendar" style={{ backgroundColor: '#FFFFFF80', borderColor: '#B6B6B6', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: 0, height: '97px', justifyContent: 'space-between', paddingBottom: '9px', paddingLeft: '8px', paddingRight: '8px', paddingTop: '8px', width: '236px' }}>
                     <p>{monthYearLabel}</p>
                     <div className="week-row">
                       {weekdayLabels.map((label, idx) => (
@@ -1864,9 +1994,8 @@ function App() {
                     </div>
                   </div>
                 </footer>
-              </>
-            ) : null}
           </section>
+          </div>
         </div>
       ) : (
         <section className="stealth-shell" aria-label="Stealth interface">
@@ -2044,6 +2173,7 @@ function App() {
         aria-checked={isCute}
         aria-label="Toggle between CUTE and STEALTH mode"
         tabIndex={0}
+        style={isCute ? { alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: 0, gap: 13, height: '77px', justifyContent: 'center', paddingBottom: '14px', paddingLeft: 0, paddingRight: 0, paddingTop: 0, position: 'relative', width: '100%' } : undefined}
         onClick={() => setIsCute((c) => !c)}
         onKeyDown={(e) => {
           if (e.key === ' ' || e.key === 'Enter') {
@@ -2052,11 +2182,11 @@ function App() {
           }
         }}
       >
-        <span className={`mode-label ${!isCute ? 'mode-label--active' : ''}`.trim()}>STEALTH</span>
-        <span className={`mode-toggle ${isCute ? 'mode-toggle--right' : 'mode-toggle--left'}`} aria-hidden>
-          <span className="mode-toggle__knob" />
+        <span className={`mode-label ${!isCute ? 'mode-label--active' : ''}`.trim()} style={isCute ? { boxSizing: 'border-box', color: '#000000', flexShrink: 0, fontSize: '16px', height: 'fit-content', lineHeight: '20px', textTransform: 'uppercase', whiteSpace: 'nowrap', width: 'fit-content' } : undefined}>STEALTH</span>
+        <span className={`mode-toggle ${isCute ? 'mode-toggle--right' : 'mode-toggle--left'}`} aria-hidden style={isCute ? { boxSizing: 'border-box', flexShrink: 0, height: '27px', position: 'relative', width: '56px', border: '1px solid #00000033', background: '#FFFFFFCC' } : undefined}>
+          <span className="mode-toggle__knob" style={isCute ? { backgroundColor: '#000000', boxSizing: 'border-box', height: '14px', position: 'absolute', right: 9, top: 7, width: '14px', border: 0 } : undefined} />
         </span>
-        <span className={`mode-label ${isCute ? 'mode-label--active' : ''}`.trim()}>CUTE</span>
+        <span className={`mode-label ${isCute ? 'mode-label--active' : ''}`.trim()} style={isCute ? { boxSizing: 'border-box', color: '#FF0005', flexShrink: 0, fontSize: '16px', fontWeight: 700, height: 'fit-content', lineHeight: '20px', textTransform: 'uppercase', whiteSpace: 'nowrap', width: 'fit-content' } : undefined}>CUTE</span>
       </div>
 
       <button type="button" className="open-sheet" onClick={() => setIsSheetOpen(true)}>
