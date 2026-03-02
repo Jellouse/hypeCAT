@@ -2304,7 +2304,7 @@ svg {
     background: transparent;
     color: #fff;
     text-transform: uppercase;
-    z-index: 2;
+    z-index: 5;
   }
 
   .app--cute .cute-signal {
@@ -2344,6 +2344,10 @@ svg {
     display: grid;
     place-items: center;
     padding: 0;
+  }
+
+  .app--cute .cute-status-bar .cute-battery-wrap {
+    z-index: 6;
   }
 
   .app--cute .cute-status-bar .cute-icon--sun img {
@@ -2588,6 +2592,7 @@ svg {
     top: 25px;
     bottom: auto;
     display: flex;
+    flex-direction: row-reverse;
     gap: 23px;
     margin: 0;
   }
@@ -2623,21 +2628,25 @@ svg {
     inset: 0;
     border-radius: 999px;
     border: 1px solid #59e17c;
-    background: #fea9ca;
+    background: #c6cd4e99;
     filter: blur(12px);
   }
 
   .app--cute .cute-actions--paws button:last-child .cute-paw-glow {
-    background: #c6cd4e99;
+    background: #fea9ca;
   }
 
-  .app--cute .cute-actions--paws button img {
-    position: relative;
-    z-index: 1;
-    width: 21px;
-    height: 20px;
-    opacity: 1;
-  }
+.app--cute .cute-actions--paws button img {
+  position: relative;
+  z-index: 1;
+  width: 21px;
+  height: 20px;
+  opacity: 1;
+}
+
+.app--cute .cute-actions--paws button:last-child img {
+  transform: rotate(180deg);
+}
 
   .app--cute .cute-bottom-whitespace,
   .app--cute .cute-weather {

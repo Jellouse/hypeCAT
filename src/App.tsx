@@ -1788,7 +1788,7 @@ function App() {
                                       onClick={() => handleVote(card.id, 1)}
                                     >
                                       <span className="cute-paw-glow" aria-hidden="true" />
-                                      <img src={card.paws[1]} alt="" />
+                                      <img src={card.paws[0]} alt="" />
                                     </button>
                                     <button
                                       type="button"
@@ -1799,7 +1799,7 @@ function App() {
                                       onClick={() => handleVote(card.id, -1)}
                                     >
                                       <span className="cute-paw-glow" aria-hidden="true" />
-                                      <img src={card.paws[0]} alt="" />
+                                      <img src={card.paws[1]} alt="" />
                                     </button>
                                   </div>
                                 </div>
@@ -1845,7 +1845,7 @@ function App() {
                                       onClick={() => handleVote(card.id, 1)}
                                     >
                                       <span className="cute-paw-glow" aria-hidden="true" />
-                                      <img src={card.paws[1]} alt="" />
+                                      <img src={card.paws[0]} alt="" />
                                     </button>
                                     <button
                                       type="button"
@@ -1856,7 +1856,7 @@ function App() {
                                       onClick={() => handleVote(card.id, -1)}
                                     >
                                       <span className="cute-paw-glow" aria-hidden="true" />
-                                      <img src={card.paws[0]} alt="" />
+                                      <img src={card.paws[1]} alt="" />
                                     </button>
                                   </div>
                                 </>
@@ -1882,7 +1882,7 @@ function App() {
                                       onClick={() => handleVote(card.id, 1)}
                                     >
                                       <span className="cute-paw-glow" aria-hidden="true" />
-                                      <img src={card.paws[1]} alt="" />
+                                      <img src={card.paws[0]} alt="" />
                                     </button>
                                     <button
                                       type="button"
@@ -1893,7 +1893,7 @@ function App() {
                                       onClick={() => handleVote(card.id, -1)}
                                     >
                                       <span className="cute-paw-glow" aria-hidden="true" />
-                                      <img src={card.paws[0]} alt="" />
+                                      <img src={card.paws[1]} alt="" />
                                     </button>
                                   </div>
                                 </>
