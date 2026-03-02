@@ -35,7 +35,29 @@ export default async function handler(req: any, res: any): Promise<void> {
     }
 
     const nowIso = new Date().toISOString()
-    const subject = `hypeCAT tiny prompt (${cardId})`
+    const now = new Date(nowIso)
+    const monthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ]
+    const hours = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+    const day = now.getDate()
+    const month = monthNames[now.getMonth()]
+    const year = now.getFullYear()
+    const formattedTime = `${hours}:${minutes}, ${day}. ${month} ${year}`
+    const subject = 'HypeCat Reply!'
+    const text = [formattedTime, prompt || 'Tiny prompt', `"${answer}"`].join('\n')
 
     const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -47,15 +69,7 @@ export default async function handler(req: any, res: any): Promise<void> {
         from: fromEmail,
         to: [toEmail],
         subject,
-        text: [
-          'A tiny prompt was answered in hypeCAT.',
-          `Time: ${nowIso}`,
-          `Card: ${cardId}`,
-          `Prompt: ${prompt || '(not provided)'}`,
-          '',
-          'Answer:',
-          answer,
-        ].join('\n'),
+        text,
       }),
     })
 
