@@ -1,0 +1,24 @@
+{
+  "stations": {
+    "hype": [
+      {
+        "title": "A Lonely Cherry Tree",
+        "file": "hype/A Lonely Cherry Tree.mp3"
+      },
+      {
+        "title": "Shut Down Entirely",
+        "file": "hype/shut down entirely.mp3"
+      }
+    ],
+    "night": [
+      {
+        "title": "1 Hour Of 60s Brazilian Doomer Music [RE REUPLOAD] Vlaspatta Karamazov",
+        "file": "night/1 Hour of 60s Brazilian Doomer Music [RE-REUPLOAD] - Vlaspatta Karamazov.mp3"
+      },
+      {
+        "title": "Boards Of Canada Best Of 128k",
+        "file": "night/Boards_of_Canada_Best_of_128k.mp3"
+      }
+    ]
+  }
+}
