@@ -1,523 +1,66 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import {
+  CARD_SLOT_COUNT,
+  CARDS,
+  CARDS_STORAGE_KEY,
+  MINI_ARCADE_CARDS,
+  MINI_ARCADE_CARDS_STORAGE_KEY,
+  MINI_PROMPTS,
+  MINI_PROMPT_CARDS,
+  MINI_PROMPTS_STORAGE_KEY,
+  PAW_SETS,
+  RADIO_LIBRARY,
+  RADIO_SESSION_STORAGE_KEY,
+  RADIO_STATIONS,
+  SLOT_COOLDOWN_STORAGE_KEY,
+  VOTED_SLOT_COOLDOWN_MS,
+} from './app/constants'
+import {
+  clamp01,
+  createMemoryTiles,
+  encodePublicPath,
+  hasPersistedCardDeck,
+  loadPersistedCards,
+  loadPersistedCooldowns,
+  loadPersistedPrompts,
+  loadPersistedRadioSessionState,
+  loadPersistedSelectionSeed,
+  midiToFrequency,
+  nearestStationForPosition,
+  normalizeCardCategories,
+  radioWavePath,
+  resolveWeatherVisual,
+  shouldSkipCooldownPersistence,
+  shuffleCards,
+  stationById,
+} from './app/helpers'
+import type {
+  Card,
+  CardSlot,
+  MemoryTile,
+  MiniCardId,
+  PersistedRadioSessionByStation,
+  RadioStation,
+  UploadedTune,
+  UploadedTunesByStation,
+  WeatherSnapshot,
+} from './app/types'
 import './index.css'
-
-type Card = {
-  id: string
-  tag: string
-  title: string
-  body: string
-  paws: string[]
-}
-
-const PAW_SETS = {
-  greenRed: ['/paw-green.png', '/paw-red.png'],
-  redGreen: ['/paw-red.png', '/paw-green.png'],
-}
-
-const CARDS: Card[] = [
-  {
-    id: 'card-1',
-    tag: 'BODY\nRESET',
-    title: 'SHOULDER ROLL',
-    body: 'ROLL YOUR SHOULDERS BACK 8 TIMES, THEN FORWARD 8 TIMES.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-  {
-    id: 'card-2',
-    tag: 'BODY\nRESET',
-    title: 'WRIST WAKE',
-    body: 'DRAW SLOW CIRCLES WITH BOTH WRISTS FOR 20 SECONDS.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-  {
-    id: 'card-3',
-    tag: 'BODY\nRESET',
-    title: 'POSTURE CHECK',
-    body: 'PLANT FEET, RELAX JAW, LENGTHEN SPINE FOR 3 BREATHS.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-  {
-    id: 'card-4',
-    tag: 'PROMPT',
-    title: 'COLOR SCAN',
-    body: 'NAME 3 BLUE THINGS YOU CAN SEE RIGHT NOW.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-  {
-    id: 'card-5',
-    tag: 'PROMPT',
-    title: 'MICRO GRATITUDE',
-    body: 'WRITE ONE TINY WIN FROM TODAY IN FIVE WORDS.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-  {
-    id: 'card-6',
-    tag: 'MIND\nSNACK',
-    title: 'FOCUS RESET',
-    body: 'CLOSE EYES FOR 10 SECONDS AND LISTEN FOR ONE SOUND.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-  {
-    id: 'card-7',
-    tag: 'STATUS\nNUDGE',
-    title: 'WATER CHECK',
-    body: 'TAKE 3 SIPS OF WATER AND MARK HYDRATION AS DONE.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-  {
-    id: 'card-8',
-    tag: 'STATUS\nNUDGE',
-    title: 'TAB TIDY',
-    body: 'CLOSE 2 UNUSED TABS TO LIGHTEN YOUR BRAIN BUFFER.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-  {
-    id: 'card-9',
-    tag: 'STATUS\nNUDGE',
-    title: 'NEXT ACTION',
-    body: 'WRITE THE NEXT 1 CONCRETE STEP FOR YOUR CURRENT TASK.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-  {
-    id: 'card-10',
-    tag: 'BODY\nRESET',
-    title: 'NECK SOFTEN',
-    body: 'TILT EAR TO SHOULDER LEFT/RIGHT AND BREATHE SLOWLY.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-  {
-    id: 'card-11',
-    tag: 'BODY\nRESET',
-    title: 'ANKLE LOOP',
-    body: 'LIFT FEET AND DRAW 8 CIRCLES WITH EACH ANKLE.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-  {
-    id: 'card-12',
-    tag: 'PROMPT',
-    title: 'TINY POEM',
-    body: 'WRITE A 3-WORD POEM ABOUT YOUR CURRENT MOOD.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-  {
-    id: 'card-13',
-    tag: 'MIND\nSNACK',
-    title: 'COUNTDOWN CALM',
-    body: 'COUNT 5-4-3-2-1 THINGS YOU SENSE RIGHT NOW.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-  {
-    id: 'card-14',
-    tag: 'STATUS\nNUDGE',
-    title: 'DESK RESET',
-    body: 'PUT 1 ITEM BACK IN ITS HOME SPOT.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-  {
-    id: 'card-15',
-    tag: 'STATUS\nNUDGE',
-    title: 'PING FRIEND',
-    body: 'SEND A KIND 1-LINE CHECK-IN TO SOMEONE.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-]
-
-const MINI_ARCADE_CARDS: Card[] = [
-  {
-    id: 'arcade-pong',
-    tag: 'ARCADE\nPONG',
-    title: 'MINI PONG',
-    body: 'Tiny rally. Keep the pixel ball alive.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-  {
-    id: 'arcade-flappy',
-    tag: 'ARCADE\nFLAP',
-    title: 'MINI FLAPPY',
-    body: 'Tap or press to dodge tiny pipes.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-  {
-    id: 'arcade-memory',
-    tag: 'ARCADE\nMEM',
-    title: 'MINI MEMORY',
-    body: 'Match pairs and clear the tiny grid.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-]
-
-const MINI_PROMPT_CARDS: Card[] = [
-  {
-    id: 'prompt-pong',
-    tag: 'PROMPT\nPONG',
-    title: 'TINY PROMPT',
-    body: 'Quick reflection while you rally.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-  {
-    id: 'prompt-flappy',
-    tag: 'PROMPT\nFLAP',
-    title: 'TINY PROMPT',
-    body: 'One-line thought between taps.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-  {
-    id: 'prompt-memory',
-    tag: 'PROMPT\nMEM',
-    title: 'TINY PROMPT',
-    body: 'Capture one tiny insight.',
-    paws: ['/paw-green.png', '/paw-red.png'],
-  },
-]
-
-type RadioSong = {
-  title: string
-  bpm: number
-  notes: Array<number | null>
-}
-
-type UploadedTune = {
-  title: string
-  file: string
-}
-
-type UploadedTunesByStation = Record<RadioStation['id'], UploadedTune[]>
-
-type RadioStation = {
-  id: 'hype' | 'night'
-  name: string
-  position: number
-  songIndexes: number[]
-  allowsUploads: boolean
-}
-
-type PersistedStationRadioState =
-  | { mode: 'uploads'; uploadedTrackIndex: number; uploadedTimeSec: number }
-  | { mode: 'synth'; songIndex: number; noteIndex: number }
-
-type PersistedRadioSessionByStation = Partial<Record<RadioStation['id'], PersistedStationRadioState>>
-
-type WeatherSnapshot = {
-  iconSrc: string
-  label: string
-  temperatureC: number | null
-}
-
-type CardSlot = {
-  card: Card | null
-  cooldownUntil: number | null
-}
-
-type MemoryTile = {
-  id: number
-  value: string
-  matched: boolean
-}
-
-type MiniCardId = 'pong' | 'flappy' | 'memory'
-
-const CARD_SLOT_COUNT = 3
-const VOTED_SLOT_COOLDOWN_MS = 20 * 60 * 1000
-const CARDS_STORAGE_KEY = 'hypecat.cards'
-const MINI_ARCADE_CARDS_STORAGE_KEY = 'hypecat.miniArcadeCards'
-const MINI_PROMPTS_STORAGE_KEY = 'hypecat.miniPrompts'
-const SLOT_COOLDOWN_STORAGE_KEY = 'hypecat.slotCooldownUntil'
-const RADIO_SESSION_STORAGE_KEY = 'hypecat.radioSession'
-const MEMORY_SYMBOLS = ['P', 'P', 'C', 'C', 'R', 'R', 'M', 'M'] as const
-const MINI_PROMPTS = [
-  'What is one tiny win from today?',
-  'What would make the next 10 minutes easier?',
-  'Name one thing you can simplify right now.',
-  'What is your next concrete action?',
-  'What are you curious about in this task?',
-  'What would future-you thank you for?',
-] as const
-
-const RADIO_LIBRARY: RadioSong[] = [
-  {
-    title: 'Moonbeam Loop',
-    bpm: 118,
-    notes: [64, 67, 71, 72, 71, 67, 64, null, 64, 67, 71, 74, 72, 71, 67, null],
-  },
-  {
-    title: 'Paws In Orbit',
-    bpm: 104,
-    notes: [57, 60, 64, 69, 67, 64, 60, null, 57, 60, 65, 69, 67, 65, 60, null],
-  },
-  {
-    title: 'Night Byte FM',
-    bpm: 126,
-    notes: [60, 62, 65, 69, 67, 65, 62, null, 60, 62, 65, 71, 69, 67, 65, null],
-  },
-]
-
-const RADIO_STATIONS: RadioStation[] = [
-  { id: 'hype', name: 'HYPE FM', position: 0.2, songIndexes: [0, 1], allowsUploads: true },
-  { id: 'night', name: 'NITE FM', position: 0.78, songIndexes: [2], allowsUploads: false },
-]
-const RADIO_TUNE_THRESHOLD = 0.065
-
-const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
-const encodePublicPath = (path: string) =>
-  path
-    .split('/')
-    .filter((segment) => segment.length > 0)
-    .map((segment) => encodeURIComponent(segment))
-    .join('/')
-
-const createMemoryTiles = (): MemoryTile[] => {
-  const pool = [...MEMORY_SYMBOLS]
-  for (let i = pool.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1))
-    const temp = pool[i]
-    pool[i] = pool[j]
-    pool[j] = temp
-  }
-  return pool.map((value, index) => ({ id: index, value, matched: false }))
-}
-
-const shouldSkipCooldownPersistence = () => {
-  if (typeof window === 'undefined' || !import.meta.env.DEV) {
-    return false
-  }
-  const params = new URLSearchParams(window.location.search)
-  return params.get('skipCooldownPersistence') === '1'
-}
-
-const loadPersistedCooldowns = (): Record<number, number> => {
-  if (typeof window === 'undefined' || shouldSkipCooldownPersistence()) {
-    return {}
-  }
-  try {
-    const raw = window.localStorage.getItem(SLOT_COOLDOWN_STORAGE_KEY)
-    if (!raw) {
-      return {}
-    }
-    const parsed = JSON.parse(raw) as Record<string, unknown>
-    const nowMs = Date.now()
-    const next: Record<number, number> = {}
-    Object.entries(parsed).forEach(([key, value]) => {
-      const slotIndex = Number(key)
-      if (!Number.isFinite(slotIndex) || typeof value !== 'number' || value <= nowMs) {
-        return
-      }
-      next[slotIndex] = value
-    })
-    return next
-  } catch {
-    return {}
-  }
-}
-
-const loadPersistedRadioSessionState = (): PersistedRadioSessionByStation => {
-  if (typeof window === 'undefined') {
-    return {}
-  }
-  try {
-    const raw = window.sessionStorage.getItem(RADIO_SESSION_STORAGE_KEY)
-    if (!raw) {
-      return {}
-    }
-    const parsed = JSON.parse(raw) as Record<string, unknown>
-    const next: PersistedRadioSessionByStation = {}
-    ;(['hype', 'night'] as const).forEach((stationId) => {
-      const entry = parsed[stationId]
-      if (!entry || typeof entry !== 'object') {
-        return
-      }
-      const data = entry as Record<string, unknown>
-      if (data.mode === 'uploads') {
-        const uploadedTrackIndex = Number(data.uploadedTrackIndex)
-        const uploadedTimeSec = Number(data.uploadedTimeSec)
-        if (Number.isFinite(uploadedTrackIndex) && uploadedTrackIndex >= 0) {
-          next[stationId] = {
-            mode: 'uploads',
-            uploadedTrackIndex,
-            uploadedTimeSec: Number.isFinite(uploadedTimeSec) && uploadedTimeSec >= 0 ? uploadedTimeSec : 0,
-          }
-        }
-        return
-      }
-      if (data.mode === 'synth') {
-        const songIndex = Number(data.songIndex)
-        const noteIndex = Number(data.noteIndex)
-        if (Number.isFinite(songIndex) && Number.isFinite(noteIndex) && noteIndex >= 0) {
-          next[stationId] = { mode: 'synth', songIndex, noteIndex }
-        }
-      }
-    })
-    return next
-  } catch {
-    return {}
-  }
-}
-
-const loadPersistedCards = (storageKey: string, fallback: Card[]): Card[] => {
-  if (typeof window === 'undefined') {
-    return [...fallback]
-  }
-  try {
-    const raw = window.localStorage.getItem(storageKey)
-    if (!raw) {
-      return [...fallback]
-    }
-    const parsed = JSON.parse(raw) as unknown
-    if (!Array.isArray(parsed)) {
-      return [...fallback]
-    }
-    const next = parsed.reduce<Card[]>((acc, item) => {
-      if (!item || typeof item !== 'object') {
-        return acc
-      }
-      const card = item as Partial<Card>
-      if (typeof card.id !== 'string' || typeof card.tag !== 'string' || typeof card.title !== 'string' || typeof card.body !== 'string') {
-        return acc
-      }
-      const paws =
-        Array.isArray(card.paws) && typeof card.paws[0] === 'string' && typeof card.paws[1] === 'string'
-          ? [card.paws[0], card.paws[1]]
-          : [...PAW_SETS.greenRed]
-      acc.push({ id: card.id, tag: card.tag, title: card.title, body: card.body, paws })
-      return acc
-    }, [])
-    return next.length > 0 ? next : [...fallback]
-  } catch {
-    return [...fallback]
-  }
-}
-
-const loadPersistedPrompts = (fallback: readonly string[]): string[] => {
-  if (typeof window === 'undefined') {
-    return [...fallback]
-  }
-  try {
-    const raw = window.localStorage.getItem(MINI_PROMPTS_STORAGE_KEY)
-    if (!raw) {
-      return [...fallback]
-    }
-    const parsed = JSON.parse(raw) as unknown
-    if (!Array.isArray(parsed)) {
-      return [...fallback]
-    }
-    const next = parsed
-      .filter((entry): entry is string => typeof entry === 'string')
-      .map((entry) => entry.trim())
-      .filter((entry) => entry.length > 0)
-    return next.length > 0 ? next : [...fallback]
-  } catch {
-    return [...fallback]
-  }
-}
-
-const shuffleCards = (cards: Card[]): Card[] => {
-  const shuffled = [...cards]
-  for (let i = shuffled.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1))
-    const temp = shuffled[i]
-    shuffled[i] = shuffled[j]
-    shuffled[j] = temp
-  }
-  return shuffled
-}
-
-const normalizeCardCategories = (cards: Card[]): Card[] => {
-  const correctedTagsById: Record<string, string> = {
-    'card-4': 'PROMPT',
-    'card-5': 'PROMPT',
-    'card-12': 'PROMPT',
-  }
-  return cards.map((card) => {
-    const correctedTag = correctedTagsById[card.id]
-    return correctedTag ? { ...card, tag: correctedTag } : card
-  })
-}
-
-const stationById = (stationId: RadioStation['id'] | null) =>
-  stationId ? (RADIO_STATIONS.find((station) => station.id === stationId) ?? null) : null
-
-const nearestStationForPosition = (position: number): RadioStation | null => {
-  const best = RADIO_STATIONS.reduce<{ station: RadioStation; distance: number } | null>((currentBest, station) => {
-    const distance = Math.abs(station.position - position)
-    if (!currentBest || distance < currentBest.distance) {
-      return { station, distance }
-    }
-    return currentBest
-  }, null)
-  if (!best || best.distance > RADIO_TUNE_THRESHOLD) {
-    return null
-  }
-  return best.station
-}
-
-const radioWavePath = (() => {
-  const width = 900
-  const height = 44
-  const centerY = height / 2
-  const points = 180
-  const baseAmplitude = 2
-  const stationReach = 0.13
-  let path = ''
-  for (let i = 0; i <= points; i += 1) {
-    const normalizedX = i / points
-    const x = normalizedX * width
-    let amplitude = baseAmplitude
-    RADIO_STATIONS.forEach((station) => {
-      const distance = Math.abs(normalizedX - station.position)
-      if (distance < stationReach) {
-        amplitude += (1 - distance / stationReach) * 9
-      }
-    })
-    const wave = Math.sin(normalizedX * Math.PI * 48)
-    const y = centerY + wave * amplitude
-    path += i === 0 ? `M ${x.toFixed(2)} ${y.toFixed(2)}` : ` L ${x.toFixed(2)} ${y.toFixed(2)}`
-  }
-  return path
-})()
-
-const midiToFrequency = (midi: number) => 440 * 2 ** ((midi - 69) / 12)
-
-const resolveWeatherVisual = (weatherCode: number, isDay: boolean): { iconSrc: string; label: string } => {
-  if (weatherCode === 0) {
-    return isDay ? { iconSrc: '/ui-sun.png', label: 'Clear sky' } : { iconSrc: '/ui-sun.png', label: 'Clear night' }
-  }
-  if (weatherCode === 1) {
-    return isDay ? { iconSrc: '/ui-sun.png', label: 'Mostly clear' } : { iconSrc: '/ui-sun.png', label: 'Mostly clear night' }
-  }
-  if (weatherCode === 2) {
-    return { iconSrc: '/ui-sun.png', label: 'Partly cloudy' }
-  }
-  if (weatherCode === 3) {
-    return { iconSrc: '/ui-sun.png', label: 'Overcast' }
-  }
-  if ([45, 48].includes(weatherCode)) {
-    return { iconSrc: '/ui-sun.png', label: 'Foggy' }
-  }
-  if ([51, 53, 55, 56, 57].includes(weatherCode)) {
-    return { iconSrc: '/ui-sun.png', label: 'Drizzle' }
-  }
-  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(weatherCode)) {
-    return { iconSrc: '/ui-sun.png', label: 'Rain' }
-  }
-  if ([71, 73, 75, 77, 85, 86].includes(weatherCode)) {
-    return { iconSrc: '/ui-sun.png', label: 'Snow' }
-  }
-  if ([95, 96, 99].includes(weatherCode)) {
-    return { iconSrc: '/ui-sun.png', label: 'Thunderstorm' }
-  }
-  return { iconSrc: '/ui-sun.png', label: 'Weather unavailable' }
-}
 
 function App() {
   const weekdayLabels = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] as const
   const [isCute, setIsCute] = useState(true)
   const [isCuteCollapsed, setIsCuteCollapsed] = useState(false)
-  const [cards, setCards] = useState<Card[]>(() =>
-    shuffleCards(normalizeCardCategories(loadPersistedCards(CARDS_STORAGE_KEY, CARDS))),
-  )
+  const [cards, setCards] = useState<Card[]>(() => {
+    const normalized = normalizeCardCategories(loadPersistedCards(CARDS_STORAGE_KEY, CARDS))
+    return hasPersistedCardDeck(CARDS_STORAGE_KEY) ? normalized : shuffleCards(normalized)
+  })
+  const [cardSelectionSeed] = useState<number>(() => loadPersistedSelectionSeed())
   const [miniArcadeCards, setMiniArcadeCards] = useState<Card[]>(() =>
     loadPersistedCards(MINI_ARCADE_CARDS_STORAGE_KEY, MINI_ARCADE_CARDS),
   )
   const [miniPrompts, setMiniPrompts] = useState<string[]>(() => loadPersistedPrompts(MINI_PROMPTS))
+  const [slotCardIdBySlot, setSlotCardIdBySlot] = useState<Record<number, string | null>>({})
   const [lastCardIdBySlot, setLastCardIdBySlot] = useState<Record<number, string>>({})
   const [votes, setVotes] = useState<Record<string, -1 | 0 | 1>>({})
   const [removingCardId, setRemovingCardId] = useState<string | null>(null)
@@ -1641,8 +1184,7 @@ function App() {
   }
 
   const nowMs = now.getTime()
-  const visibleSlots: CardSlot[] = []
-  const selectionSeed = Math.floor(nowMs / (2 * 60 * 1000))
+  const selectionSeed = cardSelectionSeed
   const hashForSelection = (input: string) => {
     let hash = 0
     for (let i = 0; i < input.length; i += 1) {
@@ -1662,25 +1204,64 @@ function App() {
           ]
   const selectedPromptCard = [...MINI_PROMPT_CARDS].sort((a, b) => a.id.localeCompare(b.id))[selectionSeed % MINI_PROMPT_CARDS.length]
   const selectionPool = [...cards, ...selectedArcadeCards, selectedPromptCard]
-  const availableTypeCards: Record<string, Card> = {}
-  selectionPool.forEach((card) => {
-    if (!availableTypeCards[card.tag]) {
-      availableTypeCards[card.tag] = card
-    }
-  })
-  const uniqueTypeQueue = Object.values(availableTypeCards).sort(
-    (a, b) => hashForSelection(`${a.id}:${selectionSeed}`) - hashForSelection(`${b.id}:${selectionSeed}`),
-  )
+  const selectionPoolById = new Map(selectionPool.map((card) => [card.id, card]))
+
+  useEffect(() => {
+    setSlotCardIdBySlot((prev) => {
+      const next: Record<number, string | null> = {}
+      const usedIds = new Set<string>()
+      const rankedBySlot: Record<number, Card[]> = {}
+
+      for (let slotIndex = 0; slotIndex < CARD_SLOT_COUNT; slotIndex += 1) {
+        rankedBySlot[slotIndex] = [...selectionPool].sort(
+          (a, b) => hashForSelection(`${a.id}:${selectionSeed}:slot-${slotIndex}`) - hashForSelection(`${b.id}:${selectionSeed}:slot-${slotIndex}`),
+        )
+      }
+
+      for (let slotIndex = 0; slotIndex < CARD_SLOT_COUNT; slotIndex += 1) {
+        const cooldownUntil = slotCooldownUntil[slotIndex] ?? 0
+        if (cooldownUntil > nowMs) {
+          next[slotIndex] = null
+          continue
+        }
+
+        const currentCardId = prev[slotIndex] ?? null
+        if (currentCardId && selectionPoolById.has(currentCardId) && !usedIds.has(currentCardId)) {
+          next[slotIndex] = currentCardId
+          usedIds.add(currentCardId)
+          continue
+        }
+
+        const rankedCandidates = rankedBySlot[slotIndex]
+        const previousCardId = lastCardIdBySlot[slotIndex]
+        const preferred =
+          rankedCandidates.find((candidate) => candidate.id !== previousCardId && !usedIds.has(candidate.id)) ??
+          rankedCandidates.find((candidate) => !usedIds.has(candidate.id)) ??
+          null
+        next[slotIndex] = preferred?.id ?? null
+        if (preferred) {
+          usedIds.add(preferred.id)
+        }
+      }
+
+      for (let slotIndex = 0; slotIndex < CARD_SLOT_COUNT; slotIndex += 1) {
+        if ((prev[slotIndex] ?? null) !== (next[slotIndex] ?? null)) {
+          return next
+        }
+      }
+      return prev
+    })
+  }, [lastCardIdBySlot, nowMs, selectionPool, selectionSeed, slotCooldownUntil])
+
+  const visibleSlots: CardSlot[] = []
   for (let slotIndex = 0; slotIndex < CARD_SLOT_COUNT; slotIndex += 1) {
     const cooldownUntil = slotCooldownUntil[slotIndex] ?? 0
     if (cooldownUntil > nowMs) {
       visibleSlots.push({ card: null, cooldownUntil })
       continue
     }
-    const previousCardId = lastCardIdBySlot[slotIndex]
-    const preferredCardIndex = uniqueTypeQueue.findIndex((candidate) => candidate.id !== previousCardId)
-    const selectedCardIndex = preferredCardIndex >= 0 ? preferredCardIndex : 0
-    const nextCard = uniqueTypeQueue.splice(selectedCardIndex, 1)[0] ?? null
+    const slotCardId = slotCardIdBySlot[slotIndex] ?? null
+    const nextCard = slotCardId ? (selectionPoolById.get(slotCardId) ?? null) : null
     visibleSlots.push({ card: nextCard, cooldownUntil: null })
   }
   const handleVote = (cardId: string, direction: -1 | 1) => {
@@ -1706,6 +1287,7 @@ function App() {
         return next
       })
       if (slotIndex >= 0) {
+        setSlotCardIdBySlot((prev) => ({ ...prev, [slotIndex]: null }))
         setLastCardIdBySlot((prev) => ({ ...prev, [slotIndex]: cardId }))
         startSlotCooldown(slotIndex)
       }
@@ -1720,6 +1302,20 @@ function App() {
 
   const removeCard = (cardId: string) => {
     setCards((prev) => prev.filter((card) => card.id !== cardId))
+    setSlotCardIdBySlot((prev) => {
+      const next: Record<number, string | null> = {}
+      let changed = false
+      for (let slotIndex = 0; slotIndex < CARD_SLOT_COUNT; slotIndex += 1) {
+        const currentCardId = prev[slotIndex] ?? null
+        if (currentCardId === cardId) {
+          next[slotIndex] = null
+          changed = true
+        } else {
+          next[slotIndex] = currentCardId
+        }
+      }
+      return changed ? next : prev
+    })
     setVotes((prev) => {
       const next = { ...prev }
       delete next[cardId]
@@ -2282,23 +1878,37 @@ function App() {
               <p className="stealth-subline">Internal break queue</p>
             </header>
 
-            <section className="stealth-meta" aria-hidden="true">
-              <article className="meta-box">
-                <span>Active cards</span>
-                <strong>{cards.length}</strong>
-              </article>
-              <article className="meta-box">
-                <span>Mode</span>
-                <strong>Stealth</strong>
-              </article>
-              <article className="meta-box">
-                <span>Queue</span>
-                <strong>Live</strong>
-              </article>
-              <article className="meta-box">
-                <span>Cycle</span>
-                <strong>07/20</strong>
-              </article>
+            <section className="stealth-meta" aria-label="Battery status">
+              <p className="stealth-battery-label">Battery Approx</p>
+              <div className="stealth-battery-cluster">
+                <article className="stealth-battery-card">
+                  <span>Social</span>
+                  <div className="stealth-battery-row">
+                    <span className="stealth-battery-meter" aria-hidden="true">
+                      <span className="stealth-battery-fill" style={{ width: meterWidth(socialBattery) }} />
+                    </span>
+                    <strong className="stealth-battery-value">{socialBattery}%</strong>
+                  </div>
+                </article>
+                <article className="stealth-battery-card">
+                  <span>Sleep</span>
+                  <div className="stealth-battery-row">
+                    <span className="stealth-battery-meter" aria-hidden="true">
+                      <span className="stealth-battery-fill" style={{ width: meterWidth(sleepBattery) }} />
+                    </span>
+                    <strong className="stealth-battery-value">{sleepBattery}%</strong>
+                  </div>
+                </article>
+                <article className="stealth-battery-card">
+                  <span>Attention</span>
+                  <div className="stealth-battery-row">
+                    <span className="stealth-battery-meter" aria-hidden="true">
+                      <span className="stealth-battery-fill" style={{ width: meterWidth(attentionBattery) }} />
+                    </span>
+                    <strong className="stealth-battery-value">{attentionBattery}%</strong>
+                  </div>
+                </article>
+              </div>
             </section>
 
             <section className="stealth-results" aria-label="Stealth cards">
