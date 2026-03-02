@@ -1811,18 +1811,48 @@ function App() {
     }, 520)
   }
 
+  const sendMiniPromptEmail = async (payload: { cardId: MiniCardId; prompt: string; answer: string }) => {
+    const response = await fetch('/api/tiny-prompt-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!response.ok) {
+      throw new Error(`Tiny prompt email failed with status ${response.status}`)
+    }
+  }
+
   const handleMiniPromptSubmit = (cardId: MiniCardId) => {
     const answer = miniPromptDrafts[cardId].trim()
     if (!answer) {
       return
     }
+    const prompt =
+      miniPrompts.length > 0 ? miniPrompts[miniPromptIndexes[cardId] % miniPrompts.length] : 'Tiny prompt (custom)'
+
     setMiniPromptDrafts((prev) => ({ ...prev, [cardId]: '' }))
     setMiniPromptFeedback((prev) => ({ ...prev, [cardId]: 'Saved!' }))
     setMiniPromptIndexes((prev) => ({
       ...prev,
       [cardId]: miniPrompts.length > 0 ? (prev[cardId] + 1) % miniPrompts.length : prev[cardId],
     }))
+
+    void sendMiniPromptEmail({ cardId, prompt, answer })
+      .then(() => {
+        setMiniPromptFeedback((prev) => ({ ...prev, [cardId]: 'Saved + emailed!' }))
+      })
+      .catch(() => {
+        setMiniPromptFeedback((prev) => ({ ...prev, [cardId]: 'Saved (email failed)' }))
+      })
   }
+
+  const startPongMove = useCallback((direction: -1 | 1) => {
+    pongMoveDirectionRef.current = direction
+  }, [])
+
+  const stopPongMove = useCallback(() => {
+    pongMoveDirectionRef.current = 0
+  }, [])
 
   return (
     <main className={`app ${isCute ? 'app--cute' : 'app--stealth'}`}>
@@ -1958,6 +1988,26 @@ function App() {
                                         aria-label="Pong mini game"
                                       />
                                       <p className="cute-mini-games__meta">P {pongScore.player} : {pongScore.cpu} CPU</p>
+                                      <div className="cute-mini-games__controls">
+                                        <button
+                                          type="button"
+                                          onPointerDown={() => startPongMove(-1)}
+                                          onPointerUp={stopPongMove}
+                                          onPointerLeave={stopPongMove}
+                                          onBlur={stopPongMove}
+                                        >
+                                          Up
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onPointerDown={() => startPongMove(1)}
+                                          onPointerUp={stopPongMove}
+                                          onPointerLeave={stopPongMove}
+                                          onBlur={stopPongMove}
+                                        >
+                                          Down
+                                        </button>
+                                      </div>
                                     </>
                                   ) : null}
 
@@ -2295,6 +2345,26 @@ function App() {
                             aria-label="Pong mini game"
                           />
                           <p className="cute-mini-games__meta">P {pongScore.player} : {pongScore.cpu} CPU</p>
+                          <div className="stealth-mini-controls">
+                            <button
+                              type="button"
+                              onPointerDown={() => startPongMove(-1)}
+                              onPointerUp={stopPongMove}
+                              onPointerLeave={stopPongMove}
+                              onBlur={stopPongMove}
+                            >
+                              Up
+                            </button>
+                            <button
+                              type="button"
+                              onPointerDown={() => startPongMove(1)}
+                              onPointerUp={stopPongMove}
+                              onPointerLeave={stopPongMove}
+                              onBlur={stopPongMove}
+                            >
+                              Down
+                            </button>
+                          </div>
                         </>
                       ) : null}
                     </div>

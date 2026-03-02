@@ -1,5 +1,25 @@
 # React + TypeScript + Vite
 
+## Tiny prompt email notifications (Vercel)
+
+When a tiny prompt is submitted, the app now POSTs to `/api/tiny-prompt-email`.
+
+Minimal setup:
+
+1. Create a Resend API key at https://resend.com/api-keys
+2. In Vercel project settings, add environment variables:
+   - `RESEND_API_KEY` = your Resend API key
+   - `TINY_PROMPT_TO_EMAIL` = the email address that should receive answers
+3. Optional:
+   - `TINY_PROMPT_FROM_EMAIL` (defaults to `hypeCAT <onboarding@resend.dev>`)
+4. Redeploy
+
+After this, each tiny prompt submission sends an email with:
+- timestamp
+- card id
+- prompt text
+- answer text
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
