@@ -1072,6 +1072,10 @@ svg {
   color: #7f8998;
 }
 
+.cute-empty p {
+  margin: 0;
+}
+
 .paw-swipe {
   position: absolute;
   left: -1.2rem;
@@ -2381,6 +2385,24 @@ svg {
     flex-direction: column;
     gap: 20px;
     z-index: 2;
+  }
+
+  .app--cute .cute-card-grid--empty {
+    gap: 0;
+  }
+
+  .app--cute .cute-empty {
+    width: 662px;
+    min-height: 683px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 25px 20px;
+    background: linear-gradient(180deg, rgb(167 204 233 / 72%) 0%, rgb(233 240 247 / 68%) 100%);
+    color: #7f8d9d;
+    font-size: 16px;
+    line-height: 20px;
+    letter-spacing: 0;
+    text-transform: uppercase;
   }
 
   .app--cute .cute-card,

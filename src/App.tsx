@@ -1242,6 +1242,8 @@ function App() {
     const nextCard = slotCardId ? (selectionPoolById.get(slotCardId) ?? null) : null
     visibleSlots.push({ card: nextCard, cooldownUntil: null })
   }
+  const isAllCardsPawSorted = visibleSlots.every((slot) => slot.card === null)
+
   const handleVote = (cardId: string, direction: -1 | 1) => {
     if (removingCardId) {
       return
@@ -1487,7 +1489,7 @@ function App() {
             }}
           >
             <section
-              className={`cute-device ${isCuteCollapsed ? 'cute-device--collapsed' : ''}`.trim()}
+              className={`cute-device ${isCuteCollapsed ? 'cute-device--collapsed' : ''} ${isAllCardsPawSorted ? 'cute-device--all-sorted' : ''}`.trim()}
               style={{
                 backdropFilter: 'blur(36px)',
                 backgroundColor: '#FFFFFF33',
@@ -1597,10 +1599,27 @@ function App() {
               </div>
             </header>
 
-                <section className="cute-card-grid" aria-label="Break cards" style={{ alignItems: 'start', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '20px', height: 'fit-content', left: 9, paddingBlock: 0, paddingInline: 0, position: 'absolute', top: 59, width: '641px' }}>
-                    {visibleSlots.every((slot) => slot.card === null) ? (
+                <section
+                  className={`cute-card-grid ${isAllCardsPawSorted ? 'cute-card-grid--empty' : ''}`.trim()}
+                  aria-label="Break cards"
+                  style={{
+                    alignItems: 'start',
+                    boxSizing: 'border-box',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '20px',
+                    height: isAllCardsPawSorted ? '683px' : 'fit-content',
+                    left: isAllCardsPawSorted ? 0 : 9,
+                    paddingBlock: 0,
+                    paddingInline: 0,
+                    position: 'absolute',
+                    top: isAllCardsPawSorted ? 44 : 59,
+                    width: isAllCardsPawSorted ? '662px' : '641px',
+                  }}
+                >
+                    {isAllCardsPawSorted ? (
                       <article className="cute-empty" aria-live="polite">
-                        <p>All cards paw-sorted.</p>
+                        <p>ALL CARDS PAW-SORTED.</p>
                       </article>
                     ) : (
                       visibleSlots.map((slot, index) => {
@@ -1906,8 +1925,9 @@ function App() {
                     )}
                 </section>
 
-                <div className="cute-bottom-whitespace" aria-hidden="true" />
+                {!isAllCardsPawSorted ? <div className="cute-bottom-whitespace" aria-hidden="true" /> : null}
 
+                {!isAllCardsPawSorted ? (
                 <footer className="cute-bottom-strip" style={{ alignItems: 'flex-end', boxSizing: 'border-box', display: 'flex', gap: '6px', height: '97px', left: 0, paddingLeft: '14px', paddingRight: '12px', position: 'absolute', top: 614, width: '662px' }}>
                   <div className="cute-radio" aria-live="polite" style={{ backgroundColor: '#FFFFFF80', borderColor: '#B8BEC8', borderStyle: 'solid', borderWidth: '1px', boxShadow: '#FFFFFF73 1px 1px 0px inset', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: 0, height: '97px', width: '386px' }}>
                     <div
@@ -1994,6 +2014,7 @@ function App() {
                     </div>
                   </div>
                 </footer>
+                ) : null}
           </section>
           </div>
         </div>
@@ -2173,7 +2194,6 @@ function App() {
         aria-checked={isCute}
         aria-label="Toggle between CUTE and STEALTH mode"
         tabIndex={0}
-        style={isCute ? { alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: 0, gap: 13, height: '77px', justifyContent: 'center', paddingBottom: '14px', paddingLeft: 0, paddingRight: 0, paddingTop: 0, position: 'relative', width: '100%' } : undefined}
         onClick={() => setIsCute((c) => !c)}
         onKeyDown={(e) => {
           if (e.key === ' ' || e.key === 'Enter') {
@@ -2189,9 +2209,11 @@ function App() {
         <span className={`mode-label ${isCute ? 'mode-label--active' : ''}`.trim()} style={isCute ? { boxSizing: 'border-box', color: '#FF0005', flexShrink: 0, fontSize: '16px', fontWeight: 700, height: 'fit-content', lineHeight: '20px', textTransform: 'uppercase', whiteSpace: 'nowrap', width: 'fit-content' } : undefined}>CUTE</span>
       </div>
 
-      <button type="button" className="open-sheet" onClick={() => setIsSheetOpen(true)}>
-        Card manager
-      </button>
+      {!isCute || !isAllCardsPawSorted ? (
+        <button type="button" className="open-sheet" onClick={() => setIsSheetOpen(true)}>
+          Card manager
+        </button>
+      ) : null}
 
       {isSheetOpen ? (
         <div className="sheet-overlay" role="dialog" aria-modal="true" aria-label="Card manager">
