@@ -604,15 +604,6 @@ svg {
   width: 278px;
 }
 
-.cute-cooling-dev-skip {
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  inset: 0;
-  padding: 0;
-  position: absolute;
-}
-
 .cute-refill-visual {
   position: relative;
   width: 22px;
@@ -1653,11 +1644,13 @@ svg {
 
 .sheet-table-wrap {
   padding: 0.55rem 0.7rem;
+  overflow-x: auto;
 }
 
 .sheet-table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 620px;
 }
 
 .sheet-table th,
@@ -1700,7 +1693,7 @@ svg {
 
 .sheet-add-row {
   display: grid;
-  grid-template-columns: 150px 1fr 1fr 120px;
+  grid-template-columns: 150px minmax(0, 1fr) minmax(0, 1fr) 120px;
   gap: 0.4rem;
 }
 
@@ -2016,6 +2009,27 @@ svg {
     padding: 0.5rem;
   }
 
+  .open-sheet {
+    right: 10px;
+    bottom: 10px;
+    padding: 0.38rem 0.62rem;
+    font-size: 0.74rem;
+  }
+
+  .sheet-overlay {
+    padding: 0.45rem;
+    align-items: end;
+  }
+
+  .sheet-modal {
+    width: 100%;
+    max-height: min(92vh, 920px);
+  }
+
+  .sheet-table-wrap {
+    padding: 0.45rem 0.5rem;
+  }
+
   .cute-main-content {
     grid-template-columns: 1fr;
   }
@@ -2228,6 +2242,10 @@ svg {
 
   .sheet-add-row {
     grid-template-columns: 1fr;
+  }
+
+  .sheet-table {
+    min-width: 560px;
   }
 }
 @media (min-width: 761px) {
@@ -2853,6 +2871,384 @@ svg {
   }
 
   .app--cute .open-sheet {
+    right: 18px;
+    bottom: 18px;
+    display: inline-flex;
+    z-index: 4;
+  }
+}
+
+@media (max-width: 760px) {
+  .app.app--cute {
+    position: relative;
+    display: block;
+    min-height: 100dvh;
+    padding: 0;
+    overflow: auto;
+    background: transparent;
+  }
+
+  .app--cute .cute-shell {
+    width: 100%;
+    height: auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 373px;
+    position: relative;
+    z-index: 1;
+    padding: 0;
+  }
+
+  .app--cute .cute-device {
+    border: 1px solid #ffffff;
+    outline: 4px solid rgb(238 238 238 / 50%);
+    outline-offset: 3px;
+    background: #ffffff33;
+    backdrop-filter: blur(36px);
+    filter: blur(0.4px);
+    box-shadow: 0 0 0 1px rgb(255 255 255 / 25%) inset;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .app--cute .cute-device-blur-mask {
+    position: absolute;
+    left: 0;
+    top: 0;
+    backdrop-filter: blur(16px);
+    filter: blur(6px);
+    outline: 1px solid #000;
+    z-index: 0;
+  }
+
+  .app--cute .cute-device-line-haze {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 44px;
+    background-position: 50% 0%;
+    background-repeat: no-repeat;
+    background-size: 100.302% auto;
+    filter: saturate(263%);
+    opacity: 0.4;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .app--cute .cute-status-bar {
+    position: absolute;
+    top: 9px;
+    left: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 210px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #fff;
+    text-transform: uppercase;
+    z-index: 5;
+  }
+
+  .app--cute .cute-signal,
+  .app--cute .cute-time,
+  .app--cute .cute-date {
+    border: 0;
+    padding: 0;
+    font-size: 17px;
+    line-height: 22px;
+    letter-spacing: 0;
+  }
+
+  .app--cute .cute-time,
+  .app--cute .cute-date {
+    font-weight: 700;
+  }
+
+  .app--cute .cute-status-bar .cute-icon--sun,
+  .app--cute .cute-status-bar .cute-battery {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    background: none;
+    border: 0;
+    box-shadow: none;
+    display: grid;
+    place-items: center;
+    padding: 0;
+  }
+
+  .app--cute .cute-status-bar .cute-battery-wrap {
+    z-index: 6;
+  }
+
+  .app--cute .cute-status-bar .cute-icon--sun-dot {
+    width: 18px;
+    height: 18px;
+    border: 1px solid #407800;
+    border-radius: 999px;
+    background-image: linear-gradient(in oklab 180deg, oklab(86.9% -0.091 0.165 / 87%) 0%, oklab(90.2% -0.081 0.147 / 87%) 100%);
+    filter: blur(2px);
+  }
+
+  .app--cute .cute-card-grid {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    z-index: 2;
+  }
+
+  .app--cute .cute-card-grid--empty {
+    gap: 0;
+  }
+
+  .app--cute .cute-empty {
+    width: 662px;
+    min-height: 683px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 25px 20px;
+    background: linear-gradient(180deg, rgb(167 204 233 / 72%) 0%, rgb(233 240 247 / 68%) 100%);
+    color: #7f8d9d;
+    font-size: 16px;
+    line-height: 20px;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  .app--cute .cute-card,
+  .app--cute .cute-card--empty-slot {
+    width: 641px;
+    height: 100px;
+    border: 0;
+    outline: 2px solid #fff;
+    background: #ffffff80;
+    box-shadow: none;
+    border-radius: 0;
+    display: block;
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+    transform: none;
+    transition: none;
+  }
+
+  .app--cute .cute-card--cooling {
+    height: 100px;
+    background: transparent;
+    outline: 0;
+  }
+
+  .app--cute .cute-card:nth-child(3) .cute-card-top {
+    height: 127px;
+    background-color: #ffffff66;
+    border: 1px solid #fff;
+    box-shadow: #ffffff73 1px 1px 0 inset;
+  }
+
+  .app--cute .cute-card:hover,
+  .app--cute .cute-card--focus {
+    transform: none;
+    box-shadow: none;
+    outline-color: #fff;
+  }
+
+  .app--cute .cute-card-reveal {
+    display: none;
+  }
+
+  .app--cute .cute-card-surface {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+    min-height: 100%;
+  }
+
+  .app--cute .cute-card-top {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100px;
+    height: 100%;
+    min-height: 0;
+    border: 0;
+    background: linear-gradient(in oklab 180deg, oklab(100% 0 0) 0%, oklab(100% 0 0 / 0%) 100%);
+    display: block;
+    padding: 9px 8px;
+  }
+
+  .app--cute .cute-card-top::before {
+    display: none;
+  }
+
+  .app--cute .cute-card-top span {
+    display: block;
+    margin: 0;
+    max-width: 54px;
+    overflow-wrap: break-word;
+    color: #000;
+    font-size: 14px;
+    line-height: 1.1;
+    letter-spacing: -0.1em;
+  }
+
+  .app--cute .cute-card-content {
+    position: absolute;
+    left: 124px;
+    top: 14px;
+    width: 278px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0;
+  }
+
+  .app--cute .cute-card-content h3 {
+    margin: 0;
+    color: #000;
+    font-size: 16px;
+    line-height: 20px;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  .app--cute .cute-card-content p {
+    margin: 0;
+    color: #000;
+    font-size: 16px;
+    line-height: 20px;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  .app--cute .cute-actions--paws {
+    position: absolute;
+    right: 30px;
+    top: 25px;
+    bottom: auto;
+    display: flex;
+    flex-direction: row-reverse;
+    gap: 23px;
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  .app--cute .cute-actions--paws button {
+    position: relative;
+    width: 51px;
+    height: 52px;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+  }
+
+  .app--cute .cute-actions--paws button img {
+    position: relative;
+    z-index: 1;
+    width: 21px;
+    height: 20px;
+    opacity: 1;
+  }
+
+  .app--cute .cute-actions--paws button:last-child img {
+    transform: rotate(180deg);
+  }
+
+  .app--cute .cute-actions--paws button:hover:not(:disabled),
+  .app--cute .cute-actions--paws button:focus-visible:not(:disabled),
+  .app--cute .cute-actions--paws button:hover:not(:disabled) img,
+  .app--cute .cute-actions--paws button:focus-visible:not(:disabled) img {
+    transform: none;
+    filter: none;
+  }
+
+  .app--cute .cute-bottom-whitespace,
+  .app--cute .cute-weather {
+    display: none;
+  }
+
+  .app--cute .cute-bottom-strip {
+    position: absolute;
+    left: 0;
+    top: 614px;
+    width: 662px;
+    height: 97px;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 12px 0 14px;
+    gap: 6px;
+  }
+
+  .app--cute .cute-radio {
+    order: initial;
+    flex: 0 0 auto;
+    width: 386px;
+    max-width: 386px;
+    height: 97px;
+    border: 1px solid #b8bec8;
+    background: #ffffff80;
+    box-shadow: #ffffff73 1px 1px 0 inset;
+    padding: 0;
+    display: grid;
+    grid-template-rows: 44px 1fr;
+    gap: 0;
+  }
+
+  .app--cute .cute-radio__lower {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 7px 10px 6px;
+  }
+
+  .app--cute .cute-radio__brand {
+    font-size: 18px;
+    line-height: 18px;
+    letter-spacing: 0.08em;
+    color: #46546a;
+  }
+
+  .app--cute .cute-radio__track {
+    margin-top: 3px;
+    max-width: none;
+    font-size: 16px;
+    line-height: 12px;
+    color: rgb(46 58 75 / 55%);
+  }
+
+  .app--cute .cute-radio__play {
+    width: 32px;
+    height: 32px;
+    color: #6f7e95;
+    font-size: 27px;
+    text-shadow: none;
+  }
+
+  .app--cute .cute-mini-calendar {
+    order: initial;
+    width: 236px;
+    height: 97px;
+    border: 1px solid #b6b6b6;
+    background: #ffffff80;
+    box-shadow: none;
+    padding: 8px 8px 9px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .app--cute .open-sheet {
+    position: fixed;
     right: 18px;
     bottom: 18px;
     display: inline-flex;

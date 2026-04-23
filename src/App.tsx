@@ -1,13 +1,8 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   CARD_SLOT_COUNT,
   CARDS,
   CARDS_STORAGE_KEY,
-  MINI_ARCADE_CARDS,
-  MINI_ARCADE_CARDS_STORAGE_KEY,
-  MINI_PROMPTS,
-  MINI_PROMPT_CARDS,
-  MINI_PROMPTS_STORAGE_KEY,
   PAW_SETS,
   RADIO_LIBRARY,
   RADIO_SESSION_STORAGE_KEY,
@@ -18,28 +13,21 @@ import {
 import { HalftoneCmyk, PerlinNoise } from '@paper-design/shaders-react'
 import {
   clamp01,
-  createMemoryTiles,
   encodePublicPath,
-  hasPersistedCardDeck,
   loadPersistedCards,
   loadPersistedCooldowns,
-  loadPersistedPrompts,
   loadPersistedRadioSessionState,
-  loadPersistedSelectionSeed,
   midiToFrequency,
   nearestStationForPosition,
   normalizeCardCategories,
   radioWavePath,
   resolveWeatherVisual,
   shouldSkipCooldownPersistence,
-  shuffleCards,
   stationById,
 } from './app/helpers'
 import type {
   Card,
   CardSlot,
-  MemoryTile,
-  MiniCardId,
   PersistedRadioSessionByStation,
   RadioStation,
   UploadedTune,
@@ -50,17 +38,10 @@ import './index.css'
 
 function App() {
   const weekdayLabels = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] as const
+  const isPromptCard = (card: Card) => card.tag.replace(/\s+/g, '').toUpperCase().startsWith('PROMPT')
   const [isCute, setIsCute] = useState(true)
   const isCuteCollapsed = false
-  const [cards, setCards] = useState<Card[]>(() => {
-    const normalized = normalizeCardCategories(loadPersistedCards(CARDS_STORAGE_KEY, CARDS))
-    return hasPersistedCardDeck(CARDS_STORAGE_KEY) ? normalized : shuffleCards(normalized)
-  })
-  const [cardSelectionSeed] = useState<number>(() => loadPersistedSelectionSeed())
-  const [miniArcadeCards, setMiniArcadeCards] = useState<Card[]>(() =>
-    loadPersistedCards(MINI_ARCADE_CARDS_STORAGE_KEY, MINI_ARCADE_CARDS),
-  )
-  const [miniPrompts, setMiniPrompts] = useState<string[]>(() => loadPersistedPrompts(MINI_PROMPTS))
+  const [cards, setCards] = useState<Card[]>(() => normalizeCardCategories(loadPersistedCards(CARDS_STORAGE_KEY, CARDS)))
   const [slotCardIdBySlot, setSlotCardIdBySlot] = useState<Record<number, string | null>>({})
   const [lastCardIdBySlot, setLastCardIdBySlot] = useState<Record<number, string>>({})
   const [votes, setVotes] = useState<Record<string, -1 | 0 | 1>>({})
@@ -68,6 +49,7 @@ function App() {
   const [removalDirection, setRemovalDirection] = useState<-1 | 1 | null>(null)
   const [slotCooldownUntil, setSlotCooldownUntil] = useState<Record<number, number>>(() => loadPersistedCooldowns())
   const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const [newCardCategory, setNewCardCategory] = useState<'standard' | 'prompt'>('standard')
   const [newTag, setNewTag] = useState('BODY\nRESET')
   const [newTitle, setNewTitle] = useState('REACTION TEST')
   const [newBody, setNewBody] = useState('TAP YOUR DESK 5 TIMES AS EVENLY AS POSSIBLE.')
@@ -92,33 +74,13 @@ function App() {
   })
   const [now, setNow] = useState(() => new Date())
   const [isBatteryOverlayOpen, setIsBatteryOverlayOpen] = useState(false)
-  const [isTouchOptimized, setIsTouchOptimized] = useState(() =>
+  const [isMobileLayout, setIsMobileLayout] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 760px)').matches : false,
   )
-  const [pongScore, setPongScore] = useState({ player: 0, cpu: 0 })
-  const [flappyScore, setFlappyScore] = useState(0)
-  const [flappyBest, setFlappyBest] = useState(0)
-  const [flappyPhase, setFlappyPhase] = useState<'ready' | 'running' | 'over'>('ready')
-  const [memoryTiles, setMemoryTiles] = useState<MemoryTile[]>(() => createMemoryTiles())
-  const [memoryOpenIds, setMemoryOpenIds] = useState<number[]>([])
-  const [memoryMoves, setMemoryMoves] = useState(0)
-  const [memoryWins, setMemoryWins] = useState(0)
-  const [memoryBusy, setMemoryBusy] = useState(false)
-  const [miniPromptIndexes, setMiniPromptIndexes] = useState<Record<MiniCardId, number>>({
-    pong: 0,
-    flappy: 1,
-    memory: 2,
-  })
-  const [miniPromptDrafts, setMiniPromptDrafts] = useState<Record<MiniCardId, string>>({
-    pong: '',
-    flappy: '',
-    memory: '',
-  })
-  const [miniPromptFeedback, setMiniPromptFeedback] = useState<Record<MiniCardId, string>>({
-    pong: '',
-    flappy: '',
-    memory: '',
-  })
+  const [viewportSize, setViewportSize] = useState(() => ({
+    width: typeof window !== 'undefined' ? window.innerWidth : 1280,
+    height: typeof window !== 'undefined' ? window.innerHeight : 800,
+  }))
   const audioCtxRef = useRef<AudioContext | null>(null)
   const audioElRef = useRef<HTMLAudioElement | null>(null)
   const crackleSourceRef = useRef<AudioBufferSourceNode | null>(null)
@@ -135,27 +97,6 @@ function App() {
   const slotCooldownTimersRef = useRef<Record<number, number>>({})
   const tunerTrackRef = useRef<HTMLDivElement | null>(null)
   const activeStationIdRef = useRef<RadioStation['id'] | null>(RADIO_STATIONS[0].id)
-  const pongCanvasRef = useRef<HTMLCanvasElement | null>(null)
-  const flappyCanvasRef = useRef<HTMLCanvasElement | null>(null)
-  const [pongCanvasVersion, setPongCanvasVersion] = useState(0)
-  const [flappyCanvasVersion, setFlappyCanvasVersion] = useState(0)
-  const pongMoveDirectionRef = useRef<-1 | 0 | 1>(0)
-  const flappyActionRef = useRef(false)
-  const memoryHideTimerRef = useRef<number | null>(null)
-
-  const setPongCanvasNode = useCallback((node: HTMLCanvasElement | null) => {
-    if (pongCanvasRef.current !== node) {
-      pongCanvasRef.current = node
-      setPongCanvasVersion((version) => version + 1)
-    }
-  }, [])
-
-  const setFlappyCanvasNode = useCallback((node: HTMLCanvasElement | null) => {
-    if (flappyCanvasRef.current !== node) {
-      flappyCanvasRef.current = node
-      setFlappyCanvasVersion((version) => version + 1)
-    }
-  }, [])
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -210,23 +151,46 @@ function App() {
     if (typeof window === 'undefined') {
       return
     }
-    try {
-      window.localStorage.setItem(MINI_ARCADE_CARDS_STORAGE_KEY, JSON.stringify(miniArcadeCards))
-    } catch {
-      // Ignore storage failures (private mode / quota).
+    const media = window.matchMedia('(max-width: 760px)')
+    const handleChange = (event: MediaQueryListEvent) => {
+      setIsMobileLayout(event.matches)
     }
-  }, [miniArcadeCards])
+    const handleResize = () => {
+      setViewportSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      })
+    }
+    setIsMobileLayout(media.matches)
+    handleResize()
+    media.addEventListener('change', handleChange)
+    window.addEventListener('resize', handleResize)
+    return () => {
+      media.removeEventListener('change', handleChange)
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [])
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (newCardCategory === 'prompt') {
+      setNewTag((current) => (current.trim().length === 0 || !current.replace(/\s+/g, '').toUpperCase().startsWith('PROMPT') ? 'PROMPT' : current))
+      setNewTitle((current) => (current === 'REACTION TEST' ? 'TINY REFLECTION' : current))
+      setNewBody((current) =>
+        current === 'TAP YOUR DESK 5 TIMES AS EVENLY AS POSSIBLE.'
+          ? 'WHAT WOULD MAKE YOUR NEXT 10 MINUTES BETTER?'
+          : current,
+      )
       return
     }
-    try {
-      window.localStorage.setItem(MINI_PROMPTS_STORAGE_KEY, JSON.stringify(miniPrompts))
-    } catch {
-      // Ignore storage failures (private mode / quota).
-    }
-  }, [miniPrompts])
+
+    setNewTag((current) => (current.trim().length === 0 || current.replace(/\s+/g, '').toUpperCase() === 'PROMPT' ? 'BODY\nRESET' : current))
+    setNewTitle((current) => (current === 'TINY REFLECTION' ? 'REACTION TEST' : current))
+    setNewBody((current) =>
+      current === 'WHAT WOULD MAKE YOUR NEXT 10 MINUTES BETTER?'
+        ? 'TAP YOUR DESK 5 TIMES AS EVENLY AS POSSIBLE.'
+        : current,
+    )
+  }, [newCardCategory])
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -341,291 +305,6 @@ function App() {
     }
     return 69
   })()
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return
-    }
-    const media = window.matchMedia('(max-width: 760px)')
-    const handleChange = (event: MediaQueryListEvent) => {
-      setIsTouchOptimized(event.matches)
-    }
-    setIsTouchOptimized(media.matches)
-    media.addEventListener('change', handleChange)
-    return () => {
-      media.removeEventListener('change', handleChange)
-    }
-  }, [])
-
-  useEffect(() => {
-    const canvas = pongCanvasRef.current
-    if (!canvas) {
-      return
-    }
-    const ctx = canvas.getContext('2d')
-    if (!ctx) {
-      return
-    }
-
-    const width = isTouchOptimized ? 220 : 146
-    const height = isTouchOptimized ? 138 : 88
-    canvas.width = width
-    canvas.height = height
-
-    let playerY = height / 2 - 12
-    let cpuY = height / 2 - 12
-    let ballX = width / 2
-    let ballY = height / 2
-    let velX = (Math.random() > 0.5 ? 1 : -1) * (isTouchOptimized ? 2.2 : 1.8)
-    let velY = (Math.random() * 1.4 - 0.7) * (isTouchOptimized ? 1.4 : 1)
-    const paddleHeight = isTouchOptimized ? 34 : 26
-    const paddleWidth = 5
-    const leftX = 7
-    const rightX = width - 12
-    let frameId = 0
-    let lastAt = performance.now()
-    let localScore = { player: 0, cpu: 0 }
-
-    setPongScore({ player: 0, cpu: 0 })
-
-    const resetBall = (towardPlayer: boolean) => {
-      ballX = width / 2
-      ballY = height / 2
-      velX = (towardPlayer ? -1 : 1) * (isTouchOptimized ? 2.1 : 1.7)
-      velY = (Math.random() * 1.6 - 0.8) * (isTouchOptimized ? 1.4 : 1)
-    }
-
-    const onPointerMove = (event: PointerEvent) => {
-      const rect = canvas.getBoundingClientRect()
-      const y = event.clientY - rect.top
-      playerY = Math.max(0, Math.min(height - paddleHeight, y - paddleHeight / 2))
-    }
-    canvas.addEventListener('pointermove', onPointerMove)
-
-    const draw = () => {
-      ctx.clearRect(0, 0, width, height)
-      ctx.fillStyle = '#e8edf4'
-      ctx.fillRect(0, 0, width, height)
-
-      ctx.fillStyle = '#8ca0b6'
-      for (let y = 0; y < height; y += 10) {
-        ctx.fillRect(width / 2 - 1, y, 2, 5)
-      }
-
-      ctx.fillStyle = '#33475d'
-      ctx.fillRect(leftX, playerY, paddleWidth, paddleHeight)
-      ctx.fillRect(rightX, cpuY, paddleWidth, paddleHeight)
-      ctx.fillRect(ballX - 2, ballY - 2, 4, 4)
-    }
-
-    const tick = (nowAt: number) => {
-      const dt = Math.min(33, nowAt - lastAt) / 16.6
-      lastAt = nowAt
-
-      playerY += pongMoveDirectionRef.current * (isTouchOptimized ? 2.6 : 2.1) * dt
-      playerY = Math.max(0, Math.min(height - paddleHeight, playerY))
-
-      const cpuTarget = ballY - paddleHeight / 2
-      cpuY += Math.sign(cpuTarget - cpuY) * (isTouchOptimized ? 1.7 : 1.4) * dt
-      cpuY = Math.max(0, Math.min(height - paddleHeight, cpuY))
-
-      ballX += velX * dt
-      ballY += velY * dt
-
-      if (ballY <= 2 || ballY >= height - 2) {
-        velY *= -1
-      }
-
-      const hitsPlayer =
-        ballX <= leftX + paddleWidth + 2 && ballX >= leftX && ballY >= playerY && ballY <= playerY + paddleHeight
-      const hitsCpu = ballX >= rightX - 2 && ballX <= rightX + paddleWidth && ballY >= cpuY && ballY <= cpuY + paddleHeight
-
-      if (hitsPlayer && velX < 0) {
-        velX = Math.abs(velX) * 1.03
-      }
-      if (hitsCpu && velX > 0) {
-        velX = -Math.abs(velX) * 1.03
-      }
-
-      if (ballX < -8) {
-        localScore = { ...localScore, cpu: localScore.cpu + 1 }
-        setPongScore(localScore)
-        resetBall(false)
-      } else if (ballX > width + 8) {
-        localScore = { ...localScore, player: localScore.player + 1 }
-        setPongScore(localScore)
-        resetBall(true)
-      }
-
-      draw()
-      frameId = window.requestAnimationFrame(tick)
-    }
-
-    frameId = window.requestAnimationFrame(tick)
-
-    return () => {
-      canvas.removeEventListener('pointermove', onPointerMove)
-      window.cancelAnimationFrame(frameId)
-      pongMoveDirectionRef.current = 0
-    }
-  }, [isTouchOptimized, pongCanvasVersion])
-
-  useEffect(() => {
-    const canvas = flappyCanvasRef.current
-    if (!canvas) {
-      return
-    }
-    const ctx = canvas.getContext('2d')
-    if (!ctx) {
-      return
-    }
-
-    const width = isTouchOptimized ? 220 : 146
-    const height = isTouchOptimized ? 138 : 88
-    canvas.width = width
-    canvas.height = height
-
-    type Pipe = { x: number; gapTop: number; passed: boolean }
-    const gapSize = isTouchOptimized ? 68 : 50
-    const pipeWidth = isTouchOptimized ? 14 : 10
-    const birdX = isTouchOptimized ? 48 : 32
-    const flapImpulse = isTouchOptimized ? -2.05 : -1.72
-    const gravity = isTouchOptimized ? 0.082 : 0.067
-    let birdY = height / 2
-    let velY = 0
-    let pipes: Pipe[] = []
-    let frame = 0
-    let score = 0
-    let phase: 'ready' | 'running' | 'over' = 'ready'
-    let rafId = 0
-
-    setFlappyScore(0)
-    setFlappyPhase('ready')
-
-    const reset = () => {
-      birdY = height / 2
-      velY = 0
-      pipes = []
-      frame = 0
-      score = 0
-      phase = 'ready'
-      setFlappyScore(0)
-      setFlappyPhase('ready')
-    }
-
-    const flap = () => {
-      if (phase === 'over') {
-        reset()
-        return
-      }
-      if (phase === 'ready') {
-        phase = 'running'
-        setFlappyPhase('running')
-      }
-      velY = flapImpulse
-    }
-
-    const fail = () => {
-      if (phase === 'over') {
-        return
-      }
-      phase = 'over'
-      setFlappyPhase('over')
-      setFlappyBest((prev) => Math.max(prev, score))
-    }
-
-    const onPointerDown = () => {
-      flap()
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.code === 'Space' || event.code === 'ArrowUp') {
-        event.preventDefault()
-        flap()
-      }
-    }
-    canvas.addEventListener('pointerdown', onPointerDown)
-    window.addEventListener('keydown', onKeyDown)
-
-    const draw = () => {
-      ctx.clearRect(0, 0, width, height)
-      ctx.fillStyle = '#dbe5f0'
-      ctx.fillRect(0, 0, width, height)
-
-      ctx.fillStyle = '#9cb3cb'
-      ctx.fillRect(0, height - 10, width, 10)
-
-      ctx.fillStyle = '#4f6781'
-      pipes.forEach((pipe) => {
-        ctx.fillRect(pipe.x, 0, pipeWidth, pipe.gapTop)
-        ctx.fillRect(pipe.x, pipe.gapTop + gapSize, pipeWidth, height - pipe.gapTop - gapSize - 10)
-      })
-
-      ctx.fillStyle = '#29394d'
-      ctx.fillRect(birdX - 3, birdY - 3, 7, 7)
-
-      if (phase === 'ready') {
-        ctx.fillStyle = '#51657d'
-        ctx.font = `${isTouchOptimized ? 11 : 9}px monospace`
-        ctx.fillText('TAP', width / 2 - 12, height / 2 - 14)
-      }
-      if (phase === 'over') {
-        ctx.fillStyle = '#51657d'
-        ctx.font = `${isTouchOptimized ? 11 : 9}px monospace`
-        ctx.fillText('RETRY', width / 2 - 20, height / 2 - 14)
-      }
-    }
-
-    const tick = () => {
-      if (flappyActionRef.current) {
-        flap()
-        flappyActionRef.current = false
-      }
-
-      if (phase === 'running') {
-        frame += 1
-        velY += gravity
-        birdY += velY
-
-        if (frame % Math.round(isTouchOptimized ? 102 : 88) === 0) {
-          const gapTop = 12 + Math.random() * (height - gapSize - 30)
-          pipes.push({ x: width + pipeWidth, gapTop, passed: false })
-        }
-
-        pipes = pipes
-          .map((pipe) => ({ ...pipe, x: pipe.x - (isTouchOptimized ? 0.64 : 0.5) }))
-          .filter((pipe) => pipe.x > -pipeWidth - 2)
-
-        pipes.forEach((pipe) => {
-          if (!pipe.passed && pipe.x + pipeWidth < birdX) {
-            pipe.passed = true
-            score += 1
-            setFlappyScore(score)
-          }
-          const withinX = birdX + 2 > pipe.x && birdX - 2 < pipe.x + pipeWidth
-          const hitsPipe = withinX && (birdY - 2 < pipe.gapTop || birdY + 2 > pipe.gapTop + gapSize)
-          if (hitsPipe) {
-            fail()
-          }
-        })
-
-        if (birdY < 2 || birdY > height - 12) {
-          fail()
-        }
-      }
-
-      draw()
-      rafId = window.requestAnimationFrame(tick)
-    }
-
-    rafId = window.requestAnimationFrame(tick)
-
-    return () => {
-      canvas.removeEventListener('pointerdown', onPointerDown)
-      window.removeEventListener('keydown', onKeyDown)
-      window.cancelAnimationFrame(rafId)
-      flappyActionRef.current = false
-    }
-  }, [isTouchOptimized, flappyCanvasVersion])
 
   useEffect(() => {
     activeStationIdRef.current = activeStationId
@@ -1118,10 +797,6 @@ function App() {
         window.clearTimeout(timerId)
       })
       slotCooldownTimersRef.current = {}
-      if (memoryHideTimerRef.current !== null) {
-        window.clearTimeout(memoryHideTimerRef.current)
-        memoryHideTimerRef.current = null
-      }
     }
   }, [])
 
@@ -1145,56 +820,17 @@ function App() {
     }, VOTED_SLOT_COOLDOWN_MS + 1000)
   }
 
-  const skipSlotCooldownForDev = (slotIndex: number) => {
-    if (!import.meta.env.DEV) {
-      return
-    }
-    const existingTimer = slotCooldownTimersRef.current[slotIndex]
-    if (existingTimer !== undefined) {
-      window.clearTimeout(existingTimer)
-      delete slotCooldownTimersRef.current[slotIndex]
-    }
-    setSlotCooldownUntil((prev) => {
-      const next = { ...prev }
-      delete next[slotIndex]
-      return next
-    })
-  }
-
   const nowMs = now.getTime()
-  const selectionSeed = cardSelectionSeed
-  const hashForSelection = (input: string) => {
-    let hash = 0
-    for (let i = 0; i < input.length; i += 1) {
-      hash = (hash * 31 + input.charCodeAt(i)) >>> 0
-    }
-    return hash
-  }
-  const sortedArcadeCards = [...miniArcadeCards].sort((a, b) => a.id.localeCompare(b.id))
-  const selectedArcadeCards =
-    sortedArcadeCards.length === 0
-      ? []
-      : sortedArcadeCards.length === 1
-        ? [sortedArcadeCards[selectionSeed % sortedArcadeCards.length]]
-        : [
-            sortedArcadeCards[selectionSeed % sortedArcadeCards.length],
-            sortedArcadeCards[(selectionSeed + 1) % sortedArcadeCards.length],
-          ]
-  const selectedPromptCard = [...MINI_PROMPT_CARDS].sort((a, b) => a.id.localeCompare(b.id))[selectionSeed % MINI_PROMPT_CARDS.length]
-  const selectionPool = [...cards, ...selectedArcadeCards, selectedPromptCard]
-  const selectionPoolById = new Map(selectionPool.map((card) => [card.id, card]))
+  const cardsById = new Map(cards.map((card) => [card.id, card]))
+  const promptCards = cards.filter((card) => isPromptCard(card))
+  const standardCards = cards.filter((card) => !isPromptCard(card))
 
   useEffect(() => {
+    const currentCardsById = new Map(cards.map((card) => [card.id, card]))
     setSlotCardIdBySlot((prev) => {
       const next: Record<number, string | null> = {}
       const usedIds = new Set<string>()
-      const rankedBySlot: Record<number, Card[]> = {}
-
-      for (let slotIndex = 0; slotIndex < CARD_SLOT_COUNT; slotIndex += 1) {
-        rankedBySlot[slotIndex] = [...selectionPool].sort(
-          (a, b) => hashForSelection(`${a.id}:${selectionSeed}:slot-${slotIndex}`) - hashForSelection(`${b.id}:${selectionSeed}:slot-${slotIndex}`),
-        )
-      }
+      const pickRandomCard = (pool: Card[]) => pool[Math.floor(Math.random() * pool.length)] ?? null
 
       for (let slotIndex = 0; slotIndex < CARD_SLOT_COUNT; slotIndex += 1) {
         const cooldownUntil = slotCooldownUntil[slotIndex] ?? 0
@@ -1204,18 +840,16 @@ function App() {
         }
 
         const currentCardId = prev[slotIndex] ?? null
-        if (currentCardId && selectionPoolById.has(currentCardId) && !usedIds.has(currentCardId)) {
+        if (currentCardId && currentCardsById.has(currentCardId) && !usedIds.has(currentCardId)) {
           next[slotIndex] = currentCardId
           usedIds.add(currentCardId)
           continue
         }
 
-        const rankedCandidates = rankedBySlot[slotIndex]
         const previousCardId = lastCardIdBySlot[slotIndex]
-        const preferred =
-          rankedCandidates.find((candidate) => candidate.id !== previousCardId && !usedIds.has(candidate.id)) ??
-          rankedCandidates.find((candidate) => !usedIds.has(candidate.id)) ??
-          null
+        const availableCards = cards.filter((card) => !usedIds.has(card.id))
+        const preferredPool = availableCards.filter((card) => card.id !== previousCardId)
+        const preferred = pickRandomCard(preferredPool.length > 0 ? preferredPool : availableCards)
         next[slotIndex] = preferred?.id ?? null
         if (preferred) {
           usedIds.add(preferred.id)
@@ -1229,7 +863,7 @@ function App() {
       }
       return prev
     })
-  }, [lastCardIdBySlot, nowMs, selectionPool, selectionSeed, slotCooldownUntil])
+  }, [cards, lastCardIdBySlot, nowMs, slotCooldownUntil])
 
   const visibleSlots: CardSlot[] = []
   for (let slotIndex = 0; slotIndex < CARD_SLOT_COUNT; slotIndex += 1) {
@@ -1239,10 +873,19 @@ function App() {
       continue
     }
     const slotCardId = slotCardIdBySlot[slotIndex] ?? null
-    const nextCard = slotCardId ? (selectionPoolById.get(slotCardId) ?? null) : null
+    const nextCard = slotCardId ? (cardsById.get(slotCardId) ?? null) : null
     visibleSlots.push({ card: nextCard, cooldownUntil: null })
   }
   const isAllCardsPawSorted = visibleSlots.every((slot) => slot.card === null)
+  const desktopCuteWidth = 682
+  const desktopCuteHeight = 748
+  const cuteDeviceScale = Math.min(
+    1,
+    Math.max(0.1, (viewportSize.width - (isMobileLayout ? 56 : 120)) / desktopCuteWidth),
+    Math.max(0.1, (viewportSize.height - (isMobileLayout ? 128 : 140)) / desktopCuteHeight),
+  )
+  const cuteFrameWidth = desktopCuteWidth * cuteDeviceScale
+  const cuteFrameHeight = desktopCuteHeight * cuteDeviceScale
 
   const handleVote = (cardId: string, direction: -1 | 1) => {
     if (removingCardId) {
@@ -1307,14 +950,6 @@ function App() {
     }
   }
 
-  const patchMiniArcadeCard = (cardId: string, patch: Partial<Card>) => {
-    setMiniArcadeCards((prev) => prev.map((card) => (card.id === cardId ? { ...card, ...patch } : card)))
-  }
-
-  const patchMiniPrompt = (promptIndex: number, value: string) => {
-    setMiniPrompts((prev) => prev.map((prompt, index) => (index === promptIndex ? value : prompt)))
-  }
-
   const addCard = () => {
     const tag = newTag.trim()
     const title = newTitle.trim()
@@ -1327,108 +962,16 @@ function App() {
         ? crypto.randomUUID()
         : `card-${Date.now()}-${Math.random().toString(16).slice(2)}`
     setCards((prev) => [...prev, { id, tag, title, body, paws: PAW_SETS.greenRed }])
+    if (newCardCategory === 'prompt') {
+      setNewTag('PROMPT')
+      setNewTitle('TINY REFLECTION')
+      setNewBody('WHAT WOULD MAKE YOUR NEXT 10 MINUTES BETTER?')
+      return
+    }
     setNewTag('BODY\nRESET')
     setNewTitle('REACTION TEST')
     setNewBody('TAP YOUR DESK 5 TIMES AS EVENLY AS POSSIBLE.')
   }
-
-  const resetMemoryGame = () => {
-    if (memoryHideTimerRef.current !== null) {
-      window.clearTimeout(memoryHideTimerRef.current)
-      memoryHideTimerRef.current = null
-    }
-    setMemoryTiles(createMemoryTiles())
-    setMemoryOpenIds([])
-    setMemoryMoves(0)
-    setMemoryBusy(false)
-  }
-
-  const handleMemoryFlip = (tileId: number) => {
-    if (memoryBusy || memoryOpenIds.length >= 2) {
-      return
-    }
-    const tile = memoryTiles.find((entry) => entry.id === tileId)
-    if (!tile || tile.matched || memoryOpenIds.includes(tileId)) {
-      return
-    }
-    const nextOpen = [...memoryOpenIds, tileId]
-    setMemoryOpenIds(nextOpen)
-
-    if (nextOpen.length < 2) {
-      return
-    }
-
-    setMemoryMoves((prev) => prev + 1)
-    const [firstId, secondId] = nextOpen
-    const firstTile = memoryTiles.find((entry) => entry.id === firstId)
-    const secondTile = memoryTiles.find((entry) => entry.id === secondId)
-    if (!firstTile || !secondTile) {
-      setMemoryOpenIds([])
-      return
-    }
-
-    if (firstTile.value === secondTile.value) {
-      const nextTiles = memoryTiles.map((entry) =>
-        entry.id === firstId || entry.id === secondId ? { ...entry, matched: true } : entry,
-      )
-      setMemoryTiles(nextTiles)
-      setMemoryOpenIds([])
-      if (nextTiles.every((entry) => entry.matched)) {
-        setMemoryWins((prev) => prev + 1)
-      }
-      return
-    }
-
-    setMemoryBusy(true)
-    memoryHideTimerRef.current = window.setTimeout(() => {
-      setMemoryOpenIds([])
-      setMemoryBusy(false)
-      memoryHideTimerRef.current = null
-    }, 520)
-  }
-
-  const sendMiniPromptEmail = async (payload: { cardId: MiniCardId; prompt: string; answer: string }) => {
-    const response = await fetch('/api/tiny-prompt-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    if (!response.ok) {
-      throw new Error(`Tiny prompt email failed with status ${response.status}`)
-    }
-  }
-
-  const handleMiniPromptSubmit = (cardId: MiniCardId) => {
-    const answer = miniPromptDrafts[cardId].trim()
-    if (!answer) {
-      return
-    }
-    const prompt =
-      miniPrompts.length > 0 ? miniPrompts[miniPromptIndexes[cardId] % miniPrompts.length] : 'Tiny prompt (custom)'
-
-    setMiniPromptDrafts((prev) => ({ ...prev, [cardId]: '' }))
-    setMiniPromptFeedback((prev) => ({ ...prev, [cardId]: 'Saved!' }))
-    setMiniPromptIndexes((prev) => ({
-      ...prev,
-      [cardId]: miniPrompts.length > 0 ? (prev[cardId] + 1) % miniPrompts.length : prev[cardId],
-    }))
-
-    void sendMiniPromptEmail({ cardId, prompt, answer })
-      .then(() => {
-        setMiniPromptFeedback((prev) => ({ ...prev, [cardId]: 'Saved + emailed!' }))
-      })
-      .catch(() => {
-        setMiniPromptFeedback((prev) => ({ ...prev, [cardId]: 'Saved (email failed)' }))
-      })
-  }
-
-  const startPongMove = useCallback((direction: -1 | 1) => {
-    pongMoveDirectionRef.current = direction
-  }, [])
-
-  const stopPongMove = useCallback(() => {
-    pongMoveDirectionRef.current = 0
-  }, [])
 
   return (
     <main className={`app ${isCute ? 'app--cute' : 'app--stealth'}`}>
@@ -1442,10 +985,12 @@ function App() {
             boxSizing: 'border-box',
             display: 'flex',
             flexDirection: 'column',
-            height: '100vh',
+            minHeight: '100dvh',
             justifyContent: 'space-between',
-            overflow: 'clip',
+            overflow: isMobileLayout ? 'auto' : 'clip',
             paddingInline: 0,
+            paddingTop: isMobileLayout ? 18 : 0,
+            paddingBottom: isMobileLayout ? 24 : 0,
             position: 'relative',
             width: '100%',
           }}
@@ -1482,12 +1027,25 @@ function App() {
               boxSizing: 'border-box',
               display: 'flex',
               gap: 373,
-              height: '100%',
+              height: isMobileLayout ? 'auto' : '100%',
               justifyContent: 'center',
               position: 'relative',
+              paddingInline: isMobileLayout ? 12 : 0,
+              paddingBlock: isMobileLayout ? 8 : 0,
               width: '100%',
             }}
           >
+            <div
+              className="cute-device-frame"
+              style={{
+                flexShrink: 0,
+                height: `${cuteFrameHeight}px`,
+                marginInline: 'auto',
+                overflow: 'visible',
+                position: 'relative',
+                width: `${cuteFrameWidth}px`,
+              }}
+            >
             <section
               className={`cute-device ${isCuteCollapsed ? 'cute-device--collapsed' : ''} ${isAllCardsPawSorted ? 'cute-device--all-sorted' : ''}`.trim()}
               style={{
@@ -1500,7 +1058,11 @@ function App() {
                 outline: '4px solid #EEEEEE80',
                 outlineOffset: '3px',
                 overflow: 'clip',
-                position: 'relative',
+                left: 0,
+                position: 'absolute',
+                top: 0,
+                transform: `scale(${cuteDeviceScale})`,
+                transformOrigin: 'top left',
                 width: '662px',
               }}
             >
@@ -1526,7 +1088,7 @@ function App() {
               />
             <header className="cute-status-bar" style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: 210, height: 'fit-content', justifyContent: 'space-between', left: 11, paddingBlock: 0, paddingInline: 0, position: 'absolute', top: 9, width: '634px' }}>
               <span className="cute-signal" style={{ boxSizing: 'border-box', color: '#FFFFFF', flexShrink: 0, fontSize: '17px', height: 'fit-content', lineHeight: '22px', width: 'fit-content' }}>HYPE CAT</span>
-              <div className="cute-status-meta" style={{ alignItems: 'flex-start', boxSizing: 'border-box', display: 'flex', flexShrink: 0, gap: 24, height: 'fit-content', paddingBlock: 0, paddingInline: 0, width: 'fit-content' }}>
+              <div className="cute-status-meta" style={{ alignItems: 'flex-start', boxSizing: 'border-box', display: 'flex', flexShrink: 0, gap: 24, height: 'fit-content', justifyContent: 'flex-start', paddingBlock: 0, paddingInline: 0, width: 'fit-content' }}>
                 <span className="cute-time" style={{ boxSizing: 'border-box', color: '#FFFFFF', flexShrink: 0, fontSize: '17px', fontWeight: 700, height: 'fit-content', lineHeight: '22px', width: 'fit-content' }}>{timeLabel}</span>
                 <span className="cute-date" style={{ boxSizing: 'border-box', color: '#FFFFFF', flexShrink: 0, fontSize: '17px', fontWeight: 700, height: 'fit-content', lineHeight: '22px', width: 'fit-content' }}>{dateLabel}</span>
                 <span className="cute-status-icons" style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: 0, gap: 14, height: 'fit-content', paddingBlock: 0, paddingInline: 0, width: 'fit-content' }}>
@@ -1624,10 +1186,6 @@ function App() {
                     ) : (
                       visibleSlots.map((slot, index) => {
                         const card = slot.card
-                        const miniCardId: MiniCardId | null =
-                          card?.id === 'arcade-pong' ? 'pong' : card?.id === 'arcade-flappy' ? 'flappy' : card?.id === 'arcade-memory' ? 'memory' : null
-                        const promptCardId: MiniCardId | null =
-                          card?.id === 'prompt-pong' ? 'pong' : card?.id === 'prompt-flappy' ? 'flappy' : card?.id === 'prompt-memory' ? 'memory' : null
                         if (!card) {
                           const minutesLeft =
                             slot.cooldownUntil === null ? 0 : Math.max(1, Math.ceil((slot.cooldownUntil - nowMs) / 60000))
@@ -1657,15 +1215,6 @@ function App() {
                                       <p className="cute-cooling-subtitle">{`REFILLS IN ${minutesLeft}M`}</p>
                                     </div>
                                   </div>
-                                  {import.meta.env.DEV ? (
-                                    <button
-                                      type="button"
-                                      className="cute-cooling-dev-skip"
-                                      onClick={() => skipSlotCooldownForDev(index)}
-                                      aria-label="Skip cooldown for this slot"
-                                      title="Skip cooldown"
-                                    />
-                                  ) : null}
                                 </div>
                               ) : (
                                 <p>No cards queued</p>
@@ -1674,33 +1223,31 @@ function App() {
                           )
                         }
                         return (
-                          <Fragment key={card.id}>
-                            <article
-                              className={`cute-card ${miniCardId ? 'cute-card--mini-game' : ''} ${promptCardId ? 'cute-card--mini-prompt-card' : ''} ${(votes[card.id] ?? 0) !== 0 ? 'cute-card--focus' : ''} ${removingCardId === card.id ? 'cute-card--removing' : ''}`.trim()}
-                              aria-label={`Card ${index + 1}`}
-                              style={{
-                                boxSizing: 'border-box',
-                                flexShrink: 0,
-                                height: miniCardId ? '128px' : promptCardId ? 'auto' : '100px',
-                                minHeight: promptCardId ? '132px' : undefined,
-                                position: 'relative',
-                                width: '100%',
-                              }}
-                            >
+                          <article
+                            key={card.id}
+                            className={`cute-card ${(votes[card.id] ?? 0) !== 0 ? 'cute-card--focus' : ''} ${removingCardId === card.id ? 'cute-card--removing' : ''}`.trim()}
+                            aria-label={`Card ${index + 1}`}
+                            style={{
+                              boxSizing: 'border-box',
+                              flexShrink: 0,
+                              height: '100px',
+                              position: 'relative',
+                              width: '100%',
+                            }}
+                          >
                             <div className={`cute-card-reveal ${removingCardId === card.id ? 'cute-card-reveal--visible' : ''}`.trim()}>
                               {removalDirection === 1 ? 'PAW UP LOGGED' : 'PAW DOWN LOGGED'}
                             </div>
                             <div
-                              className={`cute-card-surface ${miniCardId ? 'cute-card-surface--mini' : ''}`.trim()}
+                              className="cute-card-surface"
                               style={{
                                 backgroundColor: '#FFFFFF80',
                                 boxSizing: 'border-box',
-                                height: miniCardId ? '166px' : promptCardId ? 'auto' : '100px',
+                                height: '100px',
                                 left: 0,
-                                minHeight: promptCardId ? '132px' : undefined,
                                 outline: '2px solid #FFFFFF',
-                                overflow: promptCardId ? 'visible' : 'clip',
-                                position: promptCardId ? 'relative' : 'absolute',
+                                overflow: 'clip',
+                                position: 'absolute',
                                 top: 0,
                                 width: '100%',
                               }}
@@ -1710,216 +1257,42 @@ function App() {
                                   <span key={line} style={{ boxSizing: 'border-box', color: '#000000', fontSize: '14px', left: 8, letterSpacing: '-0.1em', lineHeight: '1.1', position: 'relative', top: 9, width: '54px', whiteSpace: 'pre-wrap' }}>{line}</span>
                                 ))}
                               </div>
-                              {miniCardId ? (
-                                <div className="cute-mini-card-body" style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: 58, height: '100%', justifyContent: 'space-between', paddingBottom: '20px', paddingLeft: '20px', paddingRight: '30px', paddingTop: '20px', width: '100%' }}>
-                                  {miniCardId === 'pong' ? (
-                                    <>
-                                      <canvas
-                                        ref={setPongCanvasNode}
-                                        className="cute-mini-games__canvas"
-                                        aria-label="Pong mini game"
-                                      />
-                                      <p className="cute-mini-games__meta">P {pongScore.player} : {pongScore.cpu} CPU</p>
-                                      <div className="cute-mini-games__controls">
-                                        <button
-                                          type="button"
-                                          onPointerDown={() => startPongMove(-1)}
-                                          onPointerUp={stopPongMove}
-                                          onPointerLeave={stopPongMove}
-                                          onBlur={stopPongMove}
-                                        >
-                                          Up
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onPointerDown={() => startPongMove(1)}
-                                          onPointerUp={stopPongMove}
-                                          onPointerLeave={stopPongMove}
-                                          onBlur={stopPongMove}
-                                        >
-                                          Down
-                                        </button>
-                                      </div>
-                                    </>
-                                  ) : null}
-
-                                  {miniCardId === 'flappy' ? (
-                                    <>
-                                      <canvas
-                                        ref={setFlappyCanvasNode}
-                                        className="cute-mini-games__canvas"
-                                        aria-label="Flappy mini game"
-                                        style={{ alignItems: 'flex-start', backgroundColor: '#FFFFFF4D', borderColor: '#FFFFFF', borderStyle: 'solid', borderWidth: '1px', boxShadow: '#00000033 0px 2px 2px', boxSizing: 'border-box', display: 'flex', height: '100%', justifyContent: 'center', position: 'relative', width: '278px' }}
-                                      />
-                                      <p className="cute-mini-games__meta">
-                                        Score {flappyScore} / Best {Math.max(flappyBest, flappyScore)} ({flappyPhase})
-                                      </p>
-                                      <div className="cute-mini-games__controls">
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            flappyActionRef.current = true
-                                          }}
-                                        >
-                                          {flappyPhase === 'over' ? 'Retry' : 'Tap'}
-                                        </button>
-                                      </div>
-                                    </>
-                                  ) : null}
-
-                                  {miniCardId === 'memory' ? (
-                                    <>
-                                      <div className="cute-memory-grid" role="group" aria-label="Tiny memory game">
-                                        {memoryTiles.map((tile) => {
-                                          const isOpen = tile.matched || memoryOpenIds.includes(tile.id)
-                                          return (
-                                            <button
-                                              key={tile.id}
-                                              type="button"
-                                              className={`cute-memory-tile ${isOpen ? 'is-open' : ''}`.trim()}
-                                              onClick={() => handleMemoryFlip(tile.id)}
-                                              disabled={memoryBusy || tile.matched}
-                                              aria-label={isOpen ? `Tile ${tile.value}` : 'Hidden tile'}
-                                            >
-                                              {isOpen ? tile.value : '?'}
-                                            </button>
-                                          )
-                                        })}
-                                      </div>
-                                      <p className="cute-mini-games__meta">
-                                        Moves {memoryMoves} / Wins {memoryWins}
-                                      </p>
-                                      <div className="cute-mini-games__controls">
-                                        <button type="button" onClick={resetMemoryGame}>
-                                          Shuffle
-                                        </button>
-                                      </div>
-                                    </>
-                                  ) : null}
-
-                                  <div className="cute-actions cute-actions--paws" style={{ alignItems: 'end', boxSizing: 'border-box', display: 'flex', gap: '23px', height: 'fit-content', left: index === 0 ? 493 : index === 1 ? 476 : undefined, paddingBlock: 0, paddingInline: 0, position: 'absolute', top: index === 0 ? 25 : 24, width: 'fit-content' }}>
-                                    <button
-                                      type="button"
-                                      aria-label={`Upvote ${card.title}`}
-                                      title="Paw up"
-                                      aria-pressed={(votes[card.id] ?? 0) === 1}
-                                      disabled={Boolean(removingCardId)}
-                                      onClick={() => handleVote(card.id, 1)}
-                                    >
-                                      <span className="cute-paw-glow" aria-hidden="true" />
-                                      <img src={card.paws[0]} alt="" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      aria-label={`Downvote ${card.title}`}
-                                      title="Paw down"
-                                      aria-pressed={(votes[card.id] ?? 0) === -1}
-                                      disabled={Boolean(removingCardId)}
-                                      onClick={() => handleVote(card.id, -1)}
-                                    >
-                                      <span className="cute-paw-glow" aria-hidden="true" />
-                                      <img src={card.paws[1]} alt="" />
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : promptCardId ? (
-                                <>
-                                  <div className="cute-card-content cute-card-content--prompt">
-                                    <h3>TINY PROMPT</h3>
-                                    <form
-                                      className="cute-mini-prompt"
-                                      onSubmit={(event) => {
-                                        event.preventDefault()
-                                        handleMiniPromptSubmit(promptCardId)
-                                      }}
-                                    >
-                                      <p className="cute-mini-prompt__question">
-                                        {miniPrompts.length > 0
-                                          ? miniPrompts[miniPromptIndexes[promptCardId] % miniPrompts.length]
-                                          : 'Add tiny prompts in Card manager.'}
-                                      </p>
-                                      <div className="cute-mini-prompt__row">
-                                        <input
-                                          value={miniPromptDrafts[promptCardId]}
-                                          onChange={(event) =>
-                                            setMiniPromptDrafts((prev) => ({ ...prev, [promptCardId]: event.target.value }))
-                                          }
-                                          maxLength={40}
-                                          placeholder="tiny answer"
-                                        />
-                                        <button type="submit">Send</button>
-                                      </div>
-                                      {miniPromptFeedback[promptCardId] ? (
-                                        <p className="cute-mini-prompt__feedback">{miniPromptFeedback[promptCardId]}</p>
-                                      ) : null}
-                                    </form>
-                                  </div>
-                                  <div className="cute-actions cute-actions--paws" style={{ alignItems: 'end', boxSizing: 'border-box', display: 'flex', gap: '23px', height: 'fit-content', left: index === 0 ? 493 : index === 1 ? 476 : undefined, paddingBlock: 0, paddingInline: 0, position: 'absolute', top: index === 0 ? 25 : 24, width: 'fit-content' }}>
-                                    <button
-                                      type="button"
-                                      aria-label={`Upvote ${card.title}`}
-                                      title="Paw up"
-                                      aria-pressed={(votes[card.id] ?? 0) === 1}
-                                      disabled={Boolean(removingCardId)}
-                                      onClick={() => handleVote(card.id, 1)}
-                                    >
-                                      <span className="cute-paw-glow" aria-hidden="true" />
-                                      <img src={card.paws[0]} alt="" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      aria-label={`Downvote ${card.title}`}
-                                      title="Paw down"
-                                      aria-pressed={(votes[card.id] ?? 0) === -1}
-                                      disabled={Boolean(removingCardId)}
-                                      onClick={() => handleVote(card.id, -1)}
-                                    >
-                                      <span className="cute-paw-glow" aria-hidden="true" />
-                                      <img src={card.paws[1]} alt="" />
-                                    </button>
-                                  </div>
-                                </>
-                              ) : (
-                                <>
-                                  <div
-                                    className="cute-card-content"
-                                    style={{
-                                      top: '50%',
-                                      transform: 'translateY(-50%)',
-                                    }}
-                                  >
-                                    <h3>{card.title}</h3>
-                                    <p>{card.body}</p>
-                                  </div>
-                                  <div className="cute-actions cute-actions--paws" style={{ alignItems: 'end', boxSizing: 'border-box', display: 'flex', gap: '23px', height: 'fit-content', left: index === 0 ? 493 : index === 1 ? 476 : undefined, paddingBlock: 0, paddingInline: 0, position: 'absolute', top: index === 0 ? 25 : 24, width: 'fit-content' }}>
-                                    <button
-                                      type="button"
-                                      aria-label={`Upvote ${card.title}`}
-                                      title="Paw up"
-                                      aria-pressed={(votes[card.id] ?? 0) === 1}
-                                      disabled={Boolean(removingCardId)}
-                                      onClick={() => handleVote(card.id, 1)}
-                                    >
-                                      <span className="cute-paw-glow" aria-hidden="true" />
-                                      <img src={card.paws[0]} alt="" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      aria-label={`Downvote ${card.title}`}
-                                      title="Paw down"
-                                      aria-pressed={(votes[card.id] ?? 0) === -1}
-                                      disabled={Boolean(removingCardId)}
-                                      onClick={() => handleVote(card.id, -1)}
-                                    >
-                                      <span className="cute-paw-glow" aria-hidden="true" />
-                                      <img src={card.paws[1]} alt="" />
-                                    </button>
-                                  </div>
-                                </>
-                              )}
+                              <div
+                                className="cute-card-content"
+                                style={{
+                                  top: '50%',
+                                  transform: 'translateY(-50%)',
+                                }}
+                              >
+                                <h3>{card.title}</h3>
+                                <p>{card.body}</p>
+                              </div>
+                              <div className="cute-actions cute-actions--paws" style={{ alignItems: 'end', boxSizing: 'border-box', display: 'flex', gap: '23px', height: 'fit-content', left: index === 0 ? 493 : index === 1 ? 476 : undefined, paddingBlock: 0, paddingInline: 0, position: 'absolute', top: index === 0 ? 25 : 24, width: 'fit-content' }}>
+                                <button
+                                  type="button"
+                                  aria-label={`Upvote ${card.title}`}
+                                  title="Paw up"
+                                  aria-pressed={(votes[card.id] ?? 0) === 1}
+                                  disabled={Boolean(removingCardId)}
+                                  onClick={() => handleVote(card.id, 1)}
+                                >
+                                  <span className="cute-paw-glow" aria-hidden="true" />
+                                  <img src={card.paws[0]} alt="" />
+                                </button>
+                                <button
+                                  type="button"
+                                  aria-label={`Downvote ${card.title}`}
+                                  title="Paw down"
+                                  aria-pressed={(votes[card.id] ?? 0) === -1}
+                                  disabled={Boolean(removingCardId)}
+                                  onClick={() => handleVote(card.id, -1)}
+                                >
+                                  <span className="cute-paw-glow" aria-hidden="true" />
+                                  <img src={card.paws[1]} alt="" />
+                                </button>
+                              </div>
                             </div>
-                            </article>
-                          </Fragment>
+                          </article>
                         )
                       })
                     )}
@@ -1928,7 +1301,7 @@ function App() {
                 {!isAllCardsPawSorted ? <div className="cute-bottom-whitespace" aria-hidden="true" /> : null}
 
                 {!isAllCardsPawSorted ? (
-                <footer className="cute-bottom-strip" style={{ alignItems: 'flex-end', boxSizing: 'border-box', display: 'flex', gap: '6px', height: '97px', left: 0, paddingLeft: '14px', paddingRight: '12px', position: 'absolute', top: 614, width: '662px' }}>
+                <footer className="cute-bottom-strip" style={{ alignItems: 'flex-end', boxSizing: 'border-box', display: 'flex', flexWrap: 'nowrap', gap: '6px', height: '97px', left: 0, paddingLeft: '14px', paddingRight: '12px', position: 'absolute', top: 614, width: '662px' }}>
                   <div className="cute-radio" aria-live="polite" style={{ backgroundColor: '#FFFFFF80', borderColor: '#B8BEC8', borderStyle: 'solid', borderWidth: '1px', boxShadow: '#FFFFFF73 1px 1px 0px inset', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: 0, height: '97px', width: '386px' }}>
                     <div
                       className="cute-radio__tuner"
@@ -1995,7 +1368,7 @@ function App() {
                       </button>
                     </div>
                   </div>
-                  <span className="cute-weather">
+                  <span className="cute-weather" style={{ display: 'none' }}>
                     <img src={weather.iconSrc} alt={weather.label} title={weather.label} />
                     <span className="cute-weather-inline">{`${weatherTemperatureLabel} • ${weather.label}`}</span>
                     <span className="cute-weather-popup">{`${weatherTemperatureLabel} • ${weather.label}`}</span>
@@ -2016,6 +1389,7 @@ function App() {
                 </footer>
                 ) : null}
           </section>
+          </div>
           </div>
         </div>
       ) : (
@@ -2064,8 +1438,6 @@ function App() {
             <section className="stealth-results" aria-label="Stealth cards">
               {visibleSlots.map((slot, index) => {
                 const card = slot.card
-                const miniCardId: MiniCardId | null =
-                  card?.id === 'arcade-pong' ? 'pong' : card?.id === 'arcade-flappy' ? 'flappy' : card?.id === 'arcade-memory' ? 'memory' : null
                 if (!card) {
                   const minutesLeft =
                     slot.cooldownUntil === null ? 0 : Math.max(1, Math.ceil((slot.cooldownUntil - nowMs) / 60000))
@@ -2097,36 +1469,6 @@ function App() {
                     <div className="row-main">
                       <p className="row-title">{card.title}</p>
                       <p className="row-body">{card.body}</p>
-                      {miniCardId === 'pong' ? (
-                        <>
-                          <canvas
-                            ref={setPongCanvasNode}
-                            className="cute-mini-games__canvas"
-                            aria-label="Pong mini game"
-                          />
-                          <p className="cute-mini-games__meta">P {pongScore.player} : {pongScore.cpu} CPU</p>
-                          <div className="stealth-mini-controls">
-                            <button
-                              type="button"
-                              onPointerDown={() => startPongMove(-1)}
-                              onPointerUp={stopPongMove}
-                              onPointerLeave={stopPongMove}
-                              onBlur={stopPongMove}
-                            >
-                              Up
-                            </button>
-                            <button
-                              type="button"
-                              onPointerDown={() => startPongMove(1)}
-                              onPointerUp={stopPongMove}
-                              onPointerLeave={stopPongMove}
-                              onBlur={stopPongMove}
-                            >
-                              Down
-                            </button>
-                          </div>
-                        </>
-                      ) : null}
                     </div>
                     <div className="row-actions">
                       <button
@@ -2226,6 +1568,7 @@ function App() {
             </header>
 
             <div className="sheet-table-wrap">
+              <h3>Prompt cards</h3>
               <table className="sheet-table">
                 <thead>
                   <tr>
@@ -2236,7 +1579,7 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {cards.map((card) => (
+                  {promptCards.map((card) => (
                     <tr key={card.id}>
                       <td>
                         <input
@@ -2263,75 +1606,70 @@ function App() {
                       </td>
                     </tr>
                   ))}
+                  {promptCards.length === 0 ? (
+                    <tr>
+                      <td colSpan={4}>No prompt cards yet.</td>
+                    </tr>
+                  ) : null}
                 </tbody>
               </table>
             </div>
 
             <div className="sheet-table-wrap">
+              <h3>Exercise and reset cards</h3>
               <table className="sheet-table">
                 <thead>
                   <tr>
-                    <th>Arcade game</th>
                     <th>Tag</th>
                     <th>Title</th>
                     <th>Body</th>
+                    <th />
                   </tr>
                 </thead>
                 <tbody>
-                  {miniArcadeCards.map((card) => (
+                  {standardCards.map((card) => (
                     <tr key={card.id}>
-                      <td>{card.id.replace('arcade-', '')}</td>
                       <td>
                         <input
                           value={card.tag}
-                          onChange={(e) => patchMiniArcadeCard(card.id, { tag: e.target.value })}
+                          onChange={(e) => patchCard(card.id, { tag: e.target.value })}
                         />
                       </td>
                       <td>
                         <input
                           value={card.title}
-                          onChange={(e) => patchMiniArcadeCard(card.id, { title: e.target.value })}
+                          onChange={(e) => patchCard(card.id, { title: e.target.value })}
                         />
                       </td>
                       <td>
                         <input
                           value={card.body}
-                          onChange={(e) => patchMiniArcadeCard(card.id, { body: e.target.value })}
+                          onChange={(e) => patchCard(card.id, { body: e.target.value })}
                         />
                       </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="sheet-table-wrap">
-              <table className="sheet-table">
-                <thead>
-                  <tr>
-                    <th>Tiny prompt</th>
-                    <th>Text</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {miniPrompts.map((prompt, index) => (
-                    <tr key={`tiny-prompt-${index}`}>
-                      <td>{index + 1}</td>
                       <td>
-                        <input
-                          value={prompt}
-                          onChange={(e) => patchMiniPrompt(index, e.target.value)}
-                        />
+                        <button type="button" onClick={() => removeCard(card.id)}>
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   ))}
+                  {standardCards.length === 0 ? (
+                    <tr>
+                      <td colSpan={4}>No standard cards yet.</td>
+                    </tr>
+                  ) : null}
                 </tbody>
               </table>
             </div>
 
             <footer className="sheet-footer">
-              <p>Add a new standard card to both CUTE and STEALTH lists.</p>
+              <p>Add a new card to both CUTE and STEALTH lists.</p>
               <div className="sheet-add-row">
+                <select value={newCardCategory} onChange={(e) => setNewCardCategory(e.target.value as 'standard' | 'prompt')}>
+                  <option value="standard">Exercise / reset</option>
+                  <option value="prompt">Prompt</option>
+                </select>
                 <input value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder="Tag" />
                 <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Title" />
                 <input value={newBody} onChange={(e) => setNewBody(e.target.value)} placeholder="Body" />
